@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
 import '../pages/follow_us_page.dart';
+import '../pages/about_page.dart';
 
 class Header extends StatelessWidget {
   const Header({super.key});
@@ -55,7 +56,14 @@ class Header extends StatelessWidget {
           ),
 
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AboutPage(),
+                ),
+              );
+            },
             child: const Text(
               "About",
               style: TextStyle(color: Colors.white),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/header.dart';
 import '../widgets/footer.dart';
 import 'signup_page.dart';
+import 'user_home_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -51,7 +52,16 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const UserHomePage(),
+                      ),
+                    );
+
+                  },
                   child: const Text("Login"),
                 ),
 
