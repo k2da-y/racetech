@@ -131,6 +131,10 @@ class _PlacesPageState extends State<PlacesPage> {
                   ),
                 ),
 
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward),
+                  onPressed: previousImage,
+                ),
 
               ],
             ),

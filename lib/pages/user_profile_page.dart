@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-
+import 'login_page.dart';
+import '../profile/help_support_page.dart';
+import '../profile/privacy_policy_page.dart';
+import '../profile/training_module_page.dart';
 
 class UserProfilePage extends StatelessWidget {
   const UserProfilePage({super.key});
@@ -28,8 +31,8 @@ class UserProfilePage extends StatelessWidget {
         child: Column(
           children: [
 
-            /// TOP BAR
             Container(
+              color: Colors.blue,
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 15),
               child: Row(
@@ -37,46 +40,42 @@ class UserProfilePage extends StatelessWidget {
                 MainAxisAlignment.spaceBetween,
                 children: [
 
-                  const CircleAvatar(
-                    radius: 35,
-                    backgroundColor: Colors.grey,
+                  Text(
+                    "RaceTech",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
 
                   TextButton(
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LoginPage(),
+                        ),
+                      );
                     },
-                    child: const Text("LOG OUT"),
-                  )
+                    child: const Text(
+                      "Logout",
+                      style: TextStyle(fontSize: 20, color: Colors.white),
+                    ),
+                  ),
                 ],
               ),
             ),
 
-            const Divider(),
-
-            /// TITLE
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 15),
-              color: Colors.grey[300],
-              child: const Row(
-                mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
-                children: [
                   Text(
                     "My Profile",
                     style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold),
                   ),
-                  Icon(Icons.arrow_forward)
-                ],
-              ),
-            ),
 
             const SizedBox(height: 20),
 
-            /// USER INFO CARD
             Container(
               margin:
               const EdgeInsets.symmetric(horizontal: 20),
@@ -117,7 +116,6 @@ class UserProfilePage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            /// SETTINGS CARD
             Container(
               margin:
               const EdgeInsets.symmetric(horizontal: 20),
@@ -139,7 +137,6 @@ class UserProfilePage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            /// MORE SETTINGS
             Container(
               margin:
               const EdgeInsets.symmetric(horizontal: 20),
@@ -151,9 +148,41 @@ class UserProfilePage extends StatelessWidget {
               child: Column(
                 children: [
 
-                  menuItem("TRAINING MODULE"),
-                  menuItem("PRIVACY POLICY"),
-                  menuItem("HELP AND SUPPORT"),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TrainingModulePage(),
+                        ),
+                      );
+                    },
+                    child: menuItem("TRAINING MODULE"),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PrivacyPolicyPage(),
+                        ),
+                      );
+                    },
+                    child: menuItem("PRIVACY POLICY"),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const HelpSupportPage(),
+                        ),
+                      );
+                    },
+                    child: menuItem("HELP AND SUPPORT"),
+                  ),
 
                 ],
               ),
