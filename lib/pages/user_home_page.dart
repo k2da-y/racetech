@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-//import 'user_profile_page.dart';
+import 'user_profile_page.dart';
 import 'places_page.dart';
 
 class UserHomePage extends StatefulWidget {
@@ -47,7 +47,7 @@ class _UserHomePageState extends State<UserHomePage> {
               child: Row(
                 mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
 
                   Icon(Icons.menu, color: Colors.white),
 
@@ -60,7 +60,17 @@ class _UserHomePageState extends State<UserHomePage> {
                     ),
                   ),
 
-                  Icon(Icons.person_outline, color: Colors.white),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline, color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserProfilePage(),
+                        ),
+                      );
+                    },
+                  ),
 
                 ],
               ),

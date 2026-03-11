@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'user_profile_page.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -44,7 +45,7 @@ class _PlacesPageState extends State<PlacesPage> {
               child: Row(
                 mainAxisAlignment:
                 MainAxisAlignment.spaceBetween,
-                children: const [
+                children: [
 
                   Icon(Icons.menu, color: Colors.white),
 
@@ -57,7 +58,17 @@ class _PlacesPageState extends State<PlacesPage> {
                     ),
                   ),
 
-                  Icon(Icons.person_outline, color: Colors.white),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline, color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserProfilePage(),
+                        ),
+                      );
+                    },
+                  ),
 
                 ],
               ),
@@ -120,10 +131,6 @@ class _PlacesPageState extends State<PlacesPage> {
                   ),
                 ),
 
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward),
-                  onPressed: nextImage,
-                ),
 
               ],
             ),
