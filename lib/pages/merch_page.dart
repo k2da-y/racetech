@@ -33,9 +33,7 @@ class MerchPage extends StatelessWidget {
           ),
 
           const Spacer(),
-
           const Footer()
-
         ],
       ),
     );

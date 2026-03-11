@@ -58,9 +58,7 @@ class FAQPage extends StatelessWidget {
           ),
 
           const Spacer(),
-
           const Footer()
-
         ],
       ),
     );

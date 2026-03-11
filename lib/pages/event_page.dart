@@ -33,9 +33,7 @@ class EventsPage extends StatelessWidget {
           ),
 
           const Spacer(),
-
           const Footer()
-
         ],
       ),
     );

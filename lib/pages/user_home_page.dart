@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+//import 'user_profile_page.dart';
+import 'places_page.dart';
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -38,7 +40,6 @@ class _UserHomePageState extends State<UserHomePage> {
         child: Column(
           children: [
 
-            /// BLUE TOP BAR
             Container(
               color: Colors.blue,
               padding: const EdgeInsets.symmetric(
@@ -59,13 +60,12 @@ class _UserHomePageState extends State<UserHomePage> {
                     ),
                   ),
 
-                  Icon(Icons.person_outline,
-                      color: Colors.white),
+                  Icon(Icons.person_outline, color: Colors.white),
+
                 ],
               ),
             ),
 
-            /// CONTENT
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(25),
@@ -91,17 +91,20 @@ class _UserHomePageState extends State<UserHomePage> {
 
                     const SizedBox(height: 25),
 
-                    /// BOOK EVENT BUTTON
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        child: const Text("Book an Event"),
-                      ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const PlacesPage(),
+                          ),
+                        );
+                      },
+                      child: const Text("Book an Event"),
                     ),
 
-                    const SizedBox(height: 25),
+                    SizedBox(height: 25),
 
-                    /// IMAGE SLIDER
                     Row(
                       children: [
 
@@ -145,7 +148,6 @@ class _UserHomePageState extends State<UserHomePage> {
                         ),
                       ),
                     )
-
                   ],
                 ),
               ),

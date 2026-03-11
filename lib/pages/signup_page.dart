@@ -40,9 +40,7 @@ class _SignUpPageState extends State<SignUpPage> {
     return Scaffold(
       body: Column(
         children: [
-
           const Header(),
-
           const Spacer(),
 
           const Text(
@@ -130,7 +128,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 ElevatedButton(
                   onPressed: () {
-
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -142,7 +139,6 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                     );
-
                   },
                   child: const Text("Next"),
                 ),
@@ -166,7 +162,6 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
 
           const Spacer(),
-
           const Footer()
         ],
       ),

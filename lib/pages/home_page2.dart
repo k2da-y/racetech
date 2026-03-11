@@ -14,7 +14,6 @@ class NextHomePage extends StatelessWidget {
         children: [
 
           const Header(),
-
           const Spacer(),
 
           Padding(

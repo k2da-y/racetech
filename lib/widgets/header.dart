@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:racetechph/pages/login_page.dart';
 import '../pages/home_page.dart';
 import '../pages/follow_us_page.dart';
 import '../pages/about_page.dart';
@@ -14,12 +15,18 @@ class Header extends StatelessWidget {
       child: Row(
         children: [
 
-          const Text(
-            "RaceTech",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LoginPage(),
+                ),
+              );
+            },
+            child: const Text(
+              "RaceTech",
+              style: TextStyle(fontSize: 20, color: Colors.white),
             ),
           ),
 

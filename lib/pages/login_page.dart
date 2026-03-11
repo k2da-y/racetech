@@ -90,7 +90,6 @@ class LoginPage extends StatelessWidget {
                         ),
                       ),
                     )
-
                   ],
                 )
               ],
@@ -98,7 +97,6 @@ class LoginPage extends StatelessWidget {
           ),
 
           const Spacer(),
-
           const Footer()
         ],
       ),

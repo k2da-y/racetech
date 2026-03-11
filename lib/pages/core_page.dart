@@ -9,14 +9,12 @@ class CorePage extends StatelessWidget {
       body: Column(
         children: [
 
-          // HEADER
           Container(
             color: Colors.blue,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
             child: Row(
               children: [
 
-                // Title
                 const Text(
                   "RaceTech",
                   style: TextStyle(
@@ -28,7 +26,6 @@ class CorePage extends StatelessWidget {
 
                 const Spacer(),
 
-                // Menu buttons
                 TextButton(
                   onPressed: () {},
                   child: const Text(
@@ -56,7 +53,6 @@ class CorePage extends StatelessWidget {
             ),
           ),
 
-          // BODY
           const Expanded(
             child: Center(
               child: Text(

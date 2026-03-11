@@ -41,20 +41,17 @@ class HomePage extends StatelessWidget {
 
           ElevatedButton(
             onPressed: () {
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => NextHomePage(),
                 ),
               );
-
             },
             child: const Text("Next"),
           ),
 
           const Spacer(),
-
           const Footer()
         ],
       ),

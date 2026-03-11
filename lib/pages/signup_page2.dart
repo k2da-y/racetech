@@ -24,9 +24,7 @@ class SignUpPage2 extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-
           const Header(),
-
           const Spacer(),
 
           const Text(
@@ -84,14 +82,12 @@ class SignUpPage2 extends StatelessWidget {
 
                 ElevatedButton(
                   onPressed: () {
-
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => SignUpPage(),
                       ),
                     );
-
                   },
                   child: const Text("Back"),
                 ),
@@ -106,7 +102,6 @@ class SignUpPage2 extends StatelessWidget {
           ),
 
           const Spacer(),
-
           const Footer()
         ],
       ),
