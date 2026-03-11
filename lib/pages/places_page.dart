@@ -38,26 +38,30 @@ class _PlacesPageState extends State<PlacesPage> {
           children: [
 
             Container(
+              color: Colors.blue,
               padding: const EdgeInsets.symmetric(
                   horizontal: 20, vertical: 15),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment:
+                MainAxisAlignment.spaceBetween,
                 children: const [
 
-                  Icon(Icons.menu, size: 28),
+                  Icon(Icons.menu, color: Colors.white),
 
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.grey,
+                  Text(
+                    "RaceTech",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
 
-                  Icon(Icons.person_outline, size: 28),
+                  Icon(Icons.person_outline, color: Colors.white),
 
                 ],
               ),
             ),
-
-            const Divider(),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -148,7 +152,7 @@ class _PlacesPageState extends State<PlacesPage> {
                   const SizedBox(height: 25),
 
                   const Text(
-                    "OTHER DETAILS",
+                    "add details here.",
                     style: TextStyle(fontSize: 16),
                   ),
 
