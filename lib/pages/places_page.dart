@@ -17,9 +17,9 @@ class _PlacesPageState extends State<PlacesPage> {
   int currentIndex = 0;
 
   final List<String> images = [
-    "assets/place1.jpg",
-    "assets/place2.jpg",
-    "assets/place3.jpg"
+    "assets/place1.jpg", //dito yung pic
+    "assets/place2.jpg", //dito yung pic
+    "assets/place3.jpg"  //dito yung pic
   ];
 
   void nextImage() {

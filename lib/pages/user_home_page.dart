@@ -220,6 +220,7 @@ class _UserHomePageState extends State<UserHomePage> {
                           onPressed: previousImage,
                         ),
 
+                        //dito yung pic
                         Expanded(
                           child: Container(
                             height: 220,
