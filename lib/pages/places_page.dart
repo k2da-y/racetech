@@ -4,6 +4,7 @@ import '../profile/training_module_page.dart';
 import '../profile/privacy_policy_page.dart';
 import '../profile/help_support_page.dart';
 import 'login_page.dart';
+import 'user_home_page.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -146,12 +147,18 @@ class _PlacesPageState extends State<PlacesPage> {
                     ),
                   ),
 
-                  Text(
-                    "RaceTech",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserHomePage(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "RaceTech",
+                      style: TextStyle(fontSize: 20, color: Colors.white),
                     ),
                   ),
 
@@ -272,7 +279,7 @@ class _PlacesPageState extends State<PlacesPage> {
                       onPressed: () {},
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        backgroundColor: Colors.grey[400],
+                        backgroundColor: Colors.blueAccent[400],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
                         ),
