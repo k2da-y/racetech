@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:racetechph/pages/user_home_page.dart';
 import 'login_page.dart';
 import '../profile/help_support_page.dart';
 import '../profile/privacy_policy_page.dart';
@@ -40,12 +41,18 @@ class UserProfilePage extends StatelessWidget {
                 MainAxisAlignment.spaceBetween,
                 children: [
 
-                  Text(
-                    "RaceTech",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserHomePage(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      "RaceTech",
+                      style: TextStyle(fontSize: 20, color: Colors.white),
                     ),
                   ),
 

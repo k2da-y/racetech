@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'user_profile_page.dart';
+import '../profile/training_module_page.dart';
+import '../profile/privacy_policy_page.dart';
+import '../profile/help_support_page.dart';
+import 'login_page.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -34,6 +38,92 @@ class _PlacesPageState extends State<PlacesPage> {
   Widget build(BuildContext context) {
 
     return Scaffold(
+
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                "RaceTech Menu",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                ),
+              ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.fitness_center),
+              title: const Text("Training Module"),
+              onTap: () {
+                Navigator.push(context,
+                  MaterialPageRoute(
+                    builder: (context) => const TrainingModulePage(),
+                  ),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.lock),
+              title: const Text("Privacy Policy"),
+              onTap: () {
+                Navigator.push(context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyPolicyPage(),
+                  ),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.support_agent),
+              title: const Text("Help and Support"),
+              onTap: () {
+                Navigator.push(context,
+                  MaterialPageRoute(
+                    builder: (context) => const HelpSupportPage(),
+                  ),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.event),
+              title: const Text("Event"),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PlacesPage(),
+                  ),
+                );
+              },
+            ),
+
+            const Divider(),
+
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text("Log Out"),
+              onTap: () {
+                Navigator.push(context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoginPage(),
+                  ),
+                );
+              },
+            ),
+
+          ],
+        ),
+      ),
+
       body: SafeArea(
         child: Column(
           children: [
@@ -47,7 +137,14 @@ class _PlacesPageState extends State<PlacesPage> {
                 MainAxisAlignment.spaceBetween,
                 children: [
 
-                  Icon(Icons.menu, color: Colors.white),
+                  Builder(
+                    builder: (context) => IconButton(
+                      icon: const Icon(Icons.menu, color: Colors.white),
+                      onPressed: () {
+                        Scaffold.of(context).openDrawer();
+                      },
+                    ),
+                  ),
 
                   Text(
                     "RaceTech",
