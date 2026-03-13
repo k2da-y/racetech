@@ -18,9 +18,7 @@ class _PlacesPageState extends State<PlacesPage> {
   int currentIndex = 0;
 
   final List<String> images = [
-    "assets/place1.jpg", //dito yung pic
-    "assets/place2.jpg", //dito yung pic
-    "assets/place3.jpg"  //dito yung pic
+    "assets/map.jpg", //dito yung pic
   ];
 
   void nextImage() {
@@ -337,7 +335,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
         child: Column(
           children: [
 
-            /// STEP 1 — RUNNER INFORMATION
+            // step 1 - info ni runner
             if (step == 0) ...[
 
               TextField(
@@ -413,7 +411,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
 
             ],
 
-            /// STEP 2 — PAYMENT METHOD
+            // step 2 - payment method
             if (step == 1) ...[
 
               const Text(
@@ -445,7 +443,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
 
             ],
 
-            /// STEP 3 — WAIVER
+            // step 3 - agreemnt
             if (step == 2) ...[
 
               const Text(

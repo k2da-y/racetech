@@ -18,10 +18,11 @@ class _UserHomePageState extends State<UserHomePage> {
   int currentIndex = 0;
 
   final List<String> images = [
-    "assets/run1.jpg",
-    "assets/run2.jpg",
-    "assets/run3.jpg",
+    "assets/hiking.jpg",
+    "assets/running.jpg",
+    "assets/marathon.jpg",
   ];
+
 
   void nextImage() {
     setState(() {
