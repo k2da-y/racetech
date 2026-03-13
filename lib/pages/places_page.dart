@@ -276,7 +276,14 @@ class _PlacesPageState extends State<PlacesPage> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return const RegisterDialog();
+                          },
+                        );
+                      },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
                         backgroundColor: Colors.blueAccent[400],
@@ -286,7 +293,8 @@ class _PlacesPageState extends State<PlacesPage> {
                       ),
                       child: const Text(
                         "JOIN HERE!!",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(color:Colors.white ,fontSize: 16),
+
                       ),
                     ),
                   )
@@ -296,6 +304,225 @@ class _PlacesPageState extends State<PlacesPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class RegisterDialog extends StatefulWidget {
+  const RegisterDialog({super.key});
+
+  @override
+  State<RegisterDialog> createState() => _RegisterDialogState();
+}
+
+class _RegisterDialogState extends State<RegisterDialog> {
+
+  final nameController = TextEditingController();
+  final emailController = TextEditingController();
+  final contactController = TextEditingController();
+
+  String size = "Small";
+  String selectedGender = "Male";
+  int step = 0;
+  String paymentMethod = "GCash";
+  bool acceptedWaiver = false;
+
+  @override
+  Widget build(BuildContext context) {
+
+    return AlertDialog(
+      title: const Text("Event Registration"),
+
+      content: SingleChildScrollView(
+        child: Column(
+          children: [
+
+            /// STEP 1 — RUNNER INFORMATION
+            if (step == 0) ...[
+
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: "Full Name",
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                decoration: const InputDecoration(
+                  labelText: "Age",
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              DropdownButtonFormField<String>(
+                value: selectedGender,
+                decoration: const InputDecoration(
+                  labelText: "Gender",
+                ),
+                items: const [
+                  DropdownMenuItem(value: "Male", child: Text("Male")),
+                  DropdownMenuItem(value: "Female", child: Text("Female")),
+                  DropdownMenuItem(value: "Other", child: Text("Other")),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    selectedGender = value!;
+                  });
+                },
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: "Email",
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              TextField(
+                controller: contactController,
+                decoration: const InputDecoration(
+                  labelText: "Contact Number",
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              DropdownButtonFormField(
+                value: size,
+                decoration: const InputDecoration(
+                  labelText: "Shirt Sizes",
+                ),
+                items: const [
+                  DropdownMenuItem(value: "Small", child: Text("Small")),
+                  DropdownMenuItem(value: "Medium", child: Text("Medium")),
+                  DropdownMenuItem(value: "Large", child: Text("Large")),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    size = value!;
+                  });
+                },
+              ),
+
+            ],
+
+            /// STEP 2 — PAYMENT METHOD
+            if (step == 1) ...[
+
+              const Text(
+                "Select Payment Method",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              DropdownButtonFormField<String>(
+                value: paymentMethod,
+                decoration: const InputDecoration(
+                  labelText: "Payment Method",
+                ),
+                items: const [
+                  DropdownMenuItem(value: "GCash", child: Text("GCash")),
+                  DropdownMenuItem(value: "PayMaya", child: Text("PayMaya")),
+                  DropdownMenuItem(value: "Bank Transfer", child: Text("Bank Transfer")),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    paymentMethod = value!;
+                  });
+                },
+              ),
+
+            ],
+
+            /// STEP 3 — WAIVER
+            if (step == 2) ...[
+
+              const Text(
+                "Waiver Agreement",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              const Text(
+                "By joining this event, I confirm that I am physically fit and "
+                    "understand the risks involved in participating in running events. "
+                    "I release the event organizers from any liability.",
+                textAlign: TextAlign.center,
+              ),
+
+              const SizedBox(height: 20),
+
+              CheckboxListTile(
+                value: acceptedWaiver,
+                title: const Text("I agree to the waiver"),
+                onChanged: (value) {
+                  setState(() {
+                    acceptedWaiver = value!;
+                  });
+                },
+              ),
+
+            ],
+
+          ],
+        ),
+      ),
+
+      actions: [
+
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text("Cancel"),
+        ),
+
+        ElevatedButton(
+          onPressed: () {
+
+            if (step < 2) {
+              setState(() {
+                step++;
+              });
+            } else {
+
+              if (!acceptedWaiver) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Please accept the waiver first."),
+                  ),
+                );
+                return;
+              }
+
+              Navigator.pop(context);
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Registration Complete!"),
+                ),
+              );
+            }
+
+          },
+          child: Text(step < 2 ? "Next" : "Submit"),
+        ),
+      ],
     );
   }
 }
