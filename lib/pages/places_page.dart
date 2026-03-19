@@ -38,90 +38,7 @@ class _PlacesPageState extends State<PlacesPage> {
 
     return Scaffold(
 
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
 
-            const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.blue,
-              ),
-              child: Text(
-                "RaceTech Menu",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                ),
-              ),
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.fitness_center),
-              title: const Text("Training Module"),
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(
-                    builder: (context) => const TrainingModulePage(),
-                  ),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.lock),
-              title: const Text("Privacy Policy"),
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(
-                    builder: (context) => const PrivacyPolicyPage(),
-                  ),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.support_agent),
-              title: const Text("Help and Support"),
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(
-                    builder: (context) => const HelpSupportPage(),
-                  ),
-                );
-              },
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.event),
-              title: const Text("Event"),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const PlacesPage(),
-                  ),
-                );
-              },
-            ),
-
-            const Divider(),
-
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text("Log Out"),
-              onTap: () {
-                Navigator.push(context,
-                  MaterialPageRoute(
-                    builder: (context) => const LoginPage(),
-                  ),
-                );
-              },
-            ),
-
-          ],
-        ),
-      ),
 
       body: SafeArea(
         child: Column(
@@ -136,14 +53,6 @@ class _PlacesPageState extends State<PlacesPage> {
                 MainAxisAlignment.spaceBetween,
                 children: [
 
-                  Builder(
-                    builder: (context) => IconButton(
-                      icon: const Icon(Icons.menu, color: Colors.white),
-                      onPressed: () {
-                        Scaffold.of(context).openDrawer();
-                      },
-                    ),
-                  ),
 
                   TextButton(
                     onPressed: () {

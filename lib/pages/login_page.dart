@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:racetechph/pages/places_page.dart';
 import '../widgets/header.dart';
 import '../widgets/footer.dart';
 import 'signup_page.dart';
-import 'user_home_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -57,7 +57,7 @@ class LoginPage extends StatelessWidget {
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const UserHomePage(),
+                        builder: (context) => const PlacesPage(),
                       ),
                     );
 
