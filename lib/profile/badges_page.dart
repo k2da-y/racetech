@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class HelpSupportPage extends StatelessWidget {
-  const HelpSupportPage({super.key});
+class BadgesPage extends StatelessWidget {
+  const BadgesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Help and Support"),
+        title: const Text("Badges"),
       ),
     );
   }

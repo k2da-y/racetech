@@ -42,13 +42,6 @@ class SignUpPage2 extends StatelessWidget {
             child: Column(
               children: [
 
-                //const TextField(
-                  //decoration: InputDecoration(
-                    //labelText: "Email",
-                    //border: OutlineInputBorder(),
-                 // ),
-                //),
-
                 const SizedBox(height: 15),
 
                 const TextField(

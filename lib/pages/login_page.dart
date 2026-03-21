@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:racetechph/pages/places_page.dart';
-import '../widgets/header.dart';
-import '../widgets/footer.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatelessWidget {
@@ -10,95 +8,156 @@ class LoginPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: [
-
-          const Header(),
-
-          const Spacer(),
-
-          const Text(
-            "RaceTech Login",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+      resizeToAvoidBottomInset: true,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0F2027), Color(0xFF2C5364)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-
-          const SizedBox(height: 20),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
-              children: [
-
-                const TextField(
-                  decoration: InputDecoration(
-                    labelText: "Email",
-                    border: OutlineInputBorder(),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 25),
+              padding: const EdgeInsets.all(25),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
                   ),
-                ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
 
-                const SizedBox(height: 15),
-
-                const TextField(
-                  obscureText: true,
-                  decoration: InputDecoration(
-                    labelText: "Password",
-                    border: OutlineInputBorder(),
+                  const Text(
+                    "Welcome Back 👋",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 5),
 
-                ElevatedButton(
-                  onPressed: () {
+                  const Text(
+                    "Login to your RaceTech account",
+                    style: TextStyle(color: Colors.grey),
+                  ),
 
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PlacesPage(),
+                  const SizedBox(height: 25),
+
+                  // EMAIL FIELD
+                  TextField(
+                    decoration: InputDecoration(
+                      hintText: "Email",
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
-                    );
+                    ),
+                  ),
 
-                  },
-                  child: const Text("Login"),
-                ),
+                  const SizedBox(height: 15),
 
-                const SizedBox(height: 10),
+                  // PASSWORD FIELD
+                  TextField(
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      hintText: "Password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+                  const SizedBox(height: 10),
 
-                    const Text("Don't have an account? "),
+                  // FORGOT PASSWORD
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        // TODO: Add forgot password
+                      },
+                      child: const Text("Forgot Password?"),
+                    ),
+                  ),
 
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
+                  const SizedBox(height: 10),
+
+                  // LOGIN BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        backgroundColor: Colors.blueAccent,
+                      ),
+                      onPressed: () {
+                        Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SignUpPage(),
+                            builder: (context) => const PlacesPage(),
                           ),
                         );
                       },
                       child: const Text(
-                        "Sign Up",
-                        style: TextStyle(
-                          color: Colors.blue,
-                          fontWeight: FontWeight.bold,
+                        "Login",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // SIGN UP
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Don't have an account? "),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SignUpPage(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          "Sign Up",
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    )
-                  ],
-                )
-              ],
+                    ],
+                  ),
+
+                ],
+              ),
             ),
           ),
-
-          const Spacer(),
-          const Footer()
-        ],
+        ),
       ),
     );
   }

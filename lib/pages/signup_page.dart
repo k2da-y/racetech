@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/header.dart';
-import '../widgets/footer.dart';
 import 'signup_page2.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -19,7 +17,6 @@ class _SignUpPageState extends State<SignUpPage> {
   final lastNameController = TextEditingController();
 
   Future<void> pickBirthday() async {
-
     DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime(2000),
@@ -36,134 +33,203 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-      body: Column(
-        children: [
-          const Header(),
-          const Spacer(),
-
-          const Text(
-            "Create Account",
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+      resizeToAvoidBottomInset: true,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF1D2671), Color(0xFFC33764)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-
-          const SizedBox(height: 20),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Column(
-              children: [
-
-                TextField(
-                  controller: firstNameController,
-                  decoration: const InputDecoration(
-                    labelText: "First Name",
-                    border: OutlineInputBorder(),
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 25),
+              padding: const EdgeInsets.all(25),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 15,
+                    offset: const Offset(0, 8),
                   ),
-                ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
 
-                const SizedBox(height: 15),
-
-                TextField(
-                  controller: lastNameController,
-                  decoration: const InputDecoration(
-                    labelText: "Last Name",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-
-                const SizedBox(height: 15),
-
-                DropdownButtonFormField<String>(
-                  value: selectedGender,
-                  decoration: const InputDecoration(
-                    labelText: "Gender",
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: "Male",
-                      child: Text("Male"),
-                    ),
-                    DropdownMenuItem(
-                      value: "Female",
-                      child: Text("Female"),
-                    ),
-                    DropdownMenuItem(
-                      value: "Other",
-                      child: Text("Other"),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      selectedGender = value;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 15),
-
-                GestureDetector(
-                  onTap: pickBirthday,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      selectedBirthday == null
-                          ? "Select Birthday"
-                          : "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year}",
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SignUpPage2(
-                          firstName: firstNameController.text,
-                          lastName: lastNameController.text,
-                          gender: selectedGender ?? "",
-                          birthday: selectedBirthday.toString(),
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text("Next"),
-                ),
-
-                const SizedBox(height: 10),
-
-                GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text(
-                    "Already have an account? Login",
+                  const Text(
+                    "Create Account ✨",
                     style: TextStyle(
-                      color: Colors.blue,
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                )
-              ],
+
+                  const SizedBox(height: 5),
+
+                  const Text(
+                    "Step 1 of 2",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // FIRST NAME
+                  TextField(
+                    controller: firstNameController,
+                    decoration: InputDecoration(
+                      hintText: "First Name",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // LAST NAME
+                  TextField(
+                    controller: lastNameController,
+                    decoration: InputDecoration(
+                      hintText: "Last Name",
+                      prefixIcon: const Icon(Icons.person_outline),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // GENDER DROPDOWN
+                  DropdownButtonFormField<String>(
+                    value: selectedGender,
+                    decoration: InputDecoration(
+                      hintText: "Gender",
+                      prefixIcon: const Icon(Icons.wc),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: "Male", child: Text("Male")),
+                      DropdownMenuItem(value: "Female", child: Text("Female")),
+                      DropdownMenuItem(value: "Other", child: Text("Other")),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedGender = value;
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // BIRTHDAY PICKER
+                  GestureDetector(
+                    onTap: pickBirthday,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.cake_outlined),
+                          const SizedBox(width: 10),
+                          Text(
+                            selectedBirthday == null
+                                ? "Select Birthday"
+                                : "${selectedBirthday!.day}/${selectedBirthday!.month}/${selectedBirthday!.year}",
+                            style: TextStyle(
+                              color: selectedBirthday == null
+                                  ? Colors.grey
+                                  : Colors.black,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // NEXT BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        backgroundColor: Colors.pinkAccent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SignUpPage2(
+                              firstName: firstNameController.text,
+                              lastName: lastNameController.text,
+                              gender: selectedGender ?? "",
+                              birthday: selectedBirthday.toString(),
+                            ),
+                          ),
+                        );
+                      },
+                      child: const Text(
+                        "Next",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // BACK TO LOGIN
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Already have an account? "),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text(
+                          "Login",
+                          style: TextStyle(
+                            color: Colors.pinkAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                ],
+              ),
             ),
           ),
-
-          const Spacer(),
-          const Footer()
-        ],
+        ),
       ),
     );
   }

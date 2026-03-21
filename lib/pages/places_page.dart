@@ -9,12 +9,27 @@ class PlacesPage extends StatefulWidget {
 }
 
 class _PlacesPageState extends State<PlacesPage> {
+  List<Map<String, String>> posts = [
+    {
+      "name": "Juan Dela Cruz",
+      "content": "Excited for this event! 🔥",
+    },
+    {
+      "name": "Maria Santos",
+      "content": "Sino sasama? Tara ride tayo 🚴",
+    },
+    {
+      "name": "Alex Reyes",
+      "content": "First time ko dito, let's go!",
+    },
+  ];
 
   int currentIndex = 0;
 
   final List<String> images = [
-    "assets/map.jpg", //dito yung pic
+    "assets/map.jpg",
   ];
+
   void nextImage() {
     setState(() {
       currentIndex = (currentIndex + 1) % images.length;
@@ -29,41 +44,31 @@ class _PlacesPageState extends State<PlacesPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
+      backgroundColor: Colors.grey[100],
 
       body: SafeArea(
-        child: Column(
+        child: SingleChildScrollView(
+          child: Column(
           children: [
 
-            Container(
-              color: Colors.blue,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 15),
+            // 🔥 MODERN APP BAR
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               child: Row(
-                mainAxisAlignment:
-                MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
 
-
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const PlacesPage(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "RaceTech",
-                      style: TextStyle(fontSize: 20, color: Colors.white),
+                  const Text(
+                    "RaceTech",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
 
-                  IconButton(
-                    icon: const Icon(Icons.person_outline, color: Colors.white),
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -71,96 +76,117 @@ class _PlacesPageState extends State<PlacesPage> {
                         ),
                       );
                     },
+                    child: const CircleAvatar(
+                      backgroundColor: Colors.black,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
                   ),
-
                 ],
               ),
             ),
 
+            // TITLE
+            const Text(
+              "Events",
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 🔥 IMAGE CARD
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Stack(
-                alignment: Alignment.center,
                 children: [
 
-                  const Text(
-                    "Events",
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            const Text(
-              "CAVITE LOOP",
-              style: TextStyle(fontSize: 18),
-            ),
-
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-
-                IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: previousImage,
-                ),
-
-                Expanded(
-                  child: Container(
-                    height: 200,
+                  Container(
+                    height: 220,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(20),
                       image: DecorationImage(
                         image: AssetImage(images[currentIndex]),
                         fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                ),
 
-                IconButton(
-                  icon: const Icon(Icons.arrow_forward),
-                  onPressed: previousImage,
-                ),
+                  // arrows
+                  Positioned(
+                    left: 10,
+                    top: 90,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black54,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: previousImage,
+                      ),
+                    ),
+                  ),
 
-              ],
+                  Positioned(
+                    right: 10,
+                    top: 90,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black54,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                        onPressed: nextImage,
+                      ),
+                    ),
+                  ),
+
+                ],
+              ),
             ),
 
-            const SizedBox(height: 25),
+            const SizedBox(height: 20),
 
+            // EVENT TITLE
+            const Text(
+              "CAVITE LOOP",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // 🔥 EVENT CARD
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 25),
-              padding: const EdgeInsets.all(25),
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.black26),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 10,
+                    color: Colors.black.withOpacity(0.1),
+                    offset: const Offset(0, 5),
+                  )
+                ],
               ),
               child: Column(
                 children: [
 
                   const Text(
-                    "EVENT START\nMARCH 29, 2026\n6:00 AM PHT",
+                    "📅 March 29, 2026\n⏰ 6:00 AM",
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  const Text(
+                    "Join the Cavite Loop ride. Experience scenic routes and a fun community ride!",
+                    textAlign: TextAlign.center,
                   ),
 
                   const SizedBox(height: 25),
-
-                  const Text(
-                    "add details here.",
-                    style: TextStyle(fontSize: 16),
-                  ),
-
-                  const SizedBox(height: 30),
 
                   SizedBox(
                     width: double.infinity,
@@ -168,30 +194,103 @@ class _PlacesPageState extends State<PlacesPage> {
                       onPressed: () {
                         showDialog(
                           context: context,
-                          builder: (context) {
-                            return const RegisterDialog();
-                          },
+                          builder: (context) => const RegisterDialog(),
                         );
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        backgroundColor: Colors.blueAccent[400],
+                        backgroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const Text(
-                        "JOIN HERE!!",
-                        style: TextStyle(color:Colors.white ,fontSize: 16),
-
+                        "Join Event",
+                        style: TextStyle(fontSize: 16),
                       ),
                     ),
                   )
                 ],
               ),
             ),
+
+            const SizedBox(height: 25),
+
+            // 🔥 COMMUNITY POSTS TITLE
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Community Posts",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            // 🔥 POSTS LIST
+            SizedBox(
+              height: 250, // scrollable height
+              child: ListView.builder(
+                scrollDirection: Axis.vertical,
+                itemCount: posts.length,
+                itemBuilder: (context, index) {
+
+                  final post = posts[index];
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Container(
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(15),
+                        boxShadow: [
+                          BoxShadow(
+                            blurRadius: 8,
+                            color: Colors.black.withOpacity(0.1),
+                          )
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+
+                          Row(
+                            children: [
+                              const CircleAvatar(
+                                child: Icon(Icons.person),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                post["name"]!,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          Text(post["content"]!),
+
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
           ],
         ),
+        )
       ),
     );
   }
@@ -206,92 +305,75 @@ class RegisterDialog extends StatefulWidget {
 
 class _RegisterDialogState extends State<RegisterDialog> {
 
-  final nameController = TextEditingController();
-  final emailController = TextEditingController();
-  final contactController = TextEditingController();
-
-  String size = "Small";
-  String selectedGender = "Male";
   int step = 0;
+  String size = "Small";
   String paymentMethod = "GCash";
   bool acceptedWaiver = false;
+
+  final nameController = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
 
-    return AlertDialog(
-      title: const Text("Event Registration"),
-
-      content: SingleChildScrollView(
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
 
-            // step 1 - info ni runner
+            // TITLE + STEP
+            Text(
+              "Register (${step + 1}/3)",
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
             if (step == 0) ...[
 
+              // FULL NAME
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: "Full Name",
+                decoration: InputDecoration(
+                  hintText: "Full Name",
+                  prefixIcon: const Icon(Icons.person),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
-              TextField(
-                decoration: const InputDecoration(
-                  labelText: "Age",
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
+              // 🔥 SHIRT SIZE DROPDOWN
               DropdownButtonFormField<String>(
-                value: selectedGender,
-                decoration: const InputDecoration(
-                  labelText: "Gender",
-                ),
-                items: const [
-                  DropdownMenuItem(value: "Male", child: Text("Male")),
-                  DropdownMenuItem(value: "Female", child: Text("Female")),
-                  DropdownMenuItem(value: "Other", child: Text("Other")),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    selectedGender = value!;
-                  });
-                },
-              ),
-
-              const SizedBox(height: 10),
-
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: "Email",
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              TextField(
-                controller: contactController,
-                decoration: const InputDecoration(
-                  labelText: "Contact Number",
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              DropdownButtonFormField(
                 value: size,
-                decoration: const InputDecoration(
-                  labelText: "Shirt Sizes",
+                decoration: InputDecoration(
+                  hintText: "Shirt Size",
+                  prefixIcon: const Icon(Icons.checkroom),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
                 items: const [
+                  DropdownMenuItem(value: "X-Small", child: Text("X-Small")),
                   DropdownMenuItem(value: "Small", child: Text("Small")),
                   DropdownMenuItem(value: "Medium", child: Text("Medium")),
                   DropdownMenuItem(value: "Large", child: Text("Large")),
+                  DropdownMenuItem(value: "X-Large", child: Text("X-Large")),
                 ],
                 onChanged: (value) {
                   setState(() {
@@ -302,23 +384,17 @@ class _RegisterDialogState extends State<RegisterDialog> {
 
             ],
 
-            // step 2 - payment method
             if (step == 1) ...[
-
-              const Text(
-                "Select Payment Method",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
               DropdownButtonFormField<String>(
                 value: paymentMethod,
-                decoration: const InputDecoration(
-                  labelText: "Payment Method",
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.payment),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
                 items: const [
                   DropdownMenuItem(value: "GCash", child: Text("GCash")),
@@ -333,28 +409,13 @@ class _RegisterDialogState extends State<RegisterDialog> {
               ),
             ],
 
-            // step 3 - agreemnt
             if (step == 2) ...[
-
               const Text(
-                "Waiver Agreement",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              const Text(
-                "By joining this event, I confirm that I am physically fit and "
-                    "understand the risks involved in participating in running events. "
-                    "I release the event organizers from any liability.",
+                "I hereby declare that I am physically and medically fit to participate in this event. "
+                    "I fully understand and acknowledge the risks involved, including possible injury or accident. "
+                    "I voluntarily agree to assume all such risks and release the organizers, sponsors, and affiliated parties from any and all liability arising from my participation.",
                 textAlign: TextAlign.center,
               ),
-
-              const SizedBox(height: 20),
-
               CheckboxListTile(
                 value: acceptedWaiver,
                 title: const Text("I agree to the waiver"),
@@ -364,53 +425,69 @@ class _RegisterDialogState extends State<RegisterDialog> {
                   });
                 },
               ),
-
             ],
 
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+
+                if (step > 0)
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          step--;
+                        });
+                      },
+                      child: const Text("Back"),
+                    ),
+                  ),
+
+                if (step > 0) const SizedBox(width: 10),
+
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+
+                      if (step < 2) {
+                        setState(() {
+                          step++;
+                        });
+                      } else {
+                        if (!acceptedWaiver) return;
+
+                        Navigator.pop(context);
+
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            title: const Text("Success 🎉"),
+                            content: const Text("You have successfully registered for the event!"),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pop(context); // close dialog
+                                },
+                                child: const Text("OK"),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                    child: Text(step < 2 ? "Next" : "Submit"),
+                  ),
+                ),
+
+              ],
+            )
           ],
         ),
       ),
-
-      actions: [
-
-        TextButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          child: const Text("Cancel"),
-        ),
-
-        ElevatedButton(
-          onPressed: () {
-
-            if (step < 2) {
-              setState(() {
-                step++;
-              });
-            } else {
-
-              if (!acceptedWaiver) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Please accept the waiver first."),
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Registration Complete!"),
-                ),
-              );
-            }
-
-          },
-          child: Text(step < 2 ? "Next" : "Submit"),
-        ),
-      ],
     );
   }
 }

@@ -36,9 +36,6 @@ class _UserHomePageState extends State<UserHomePage> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-
-
-
       body: SafeArea(
         child: Column(
           children: [
