@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import 'user_profile_page.dart';
-import '../profile/training_module_page.dart';
-import '../profile/privacy_policy_page.dart';
-import '../profile/help_support_page.dart';
-import 'login_page.dart';
-import 'user_home_page.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -20,7 +15,6 @@ class _PlacesPageState extends State<PlacesPage> {
   final List<String> images = [
     "assets/map.jpg", //dito yung pic
   ];
-
   void nextImage() {
     setState(() {
       currentIndex = (currentIndex + 1) % images.length;
@@ -37,8 +31,6 @@ class _PlacesPageState extends State<PlacesPage> {
   Widget build(BuildContext context) {
 
     return Scaffold(
-
-
 
       body: SafeArea(
         child: Column(
@@ -59,7 +51,7 @@ class _PlacesPageState extends State<PlacesPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const UserHomePage(),
+                          builder: (context) => const PlacesPage(),
                         ),
                       );
                     },
@@ -91,18 +83,8 @@ class _PlacesPageState extends State<PlacesPage> {
                 alignment: Alignment.center,
                 children: [
 
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                      child: const Text("Back"),
-                    ),
-                  ),
-
                   const Text(
-                    "Places",
+                    "Events",
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
@@ -349,7 +331,6 @@ class _RegisterDialogState extends State<RegisterDialog> {
                   });
                 },
               ),
-
             ],
 
             // step 3 - agreemnt

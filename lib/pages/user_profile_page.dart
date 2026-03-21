@@ -4,6 +4,7 @@ import 'login_page.dart';
 import '../profile/help_support_page.dart';
 import '../profile/privacy_policy_page.dart';
 import '../profile/training_module_page.dart';
+import '../profile/community_page.dart';
 
 class UserProfilePage extends StatelessWidget {
   const UserProfilePage({super.key});
@@ -189,6 +190,18 @@ class UserProfilePage extends StatelessWidget {
                       );
                     },
                     child: menuItem("HELP AND SUPPORT"),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CommunityPage(),
+                        ),
+                      );
+                    },
+                    child: menuItem("COMMUNITY"),
                   ),
 
                 ],

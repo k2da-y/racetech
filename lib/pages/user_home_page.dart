@@ -1,8 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:racetechph/pages/login_page.dart';
-import 'package:racetechph/profile/help_support_page.dart';
-import 'package:racetechph/profile/privacy_policy_page.dart';
-import 'package:racetechph/profile/training_module_page.dart';
 import 'user_profile_page.dart';
 import 'places_page.dart';
 
