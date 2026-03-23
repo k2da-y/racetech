@@ -69,7 +69,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 children: [
 
                   const Text(
-                    "Create Account ✨",
+                    "Create Account",
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -204,7 +204,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       },
                       child: const Text(
                         "Next",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16, color:Colors.white),
                       ),
                     ),
                   ),
@@ -223,7 +223,7 @@ class _SignUpPageState extends State<SignUpPage> {
                         child: const Text(
                           "Login",
                           style: TextStyle(
-                            color: Colors.pinkAccent,
+                            color: Colors.blueAccent,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

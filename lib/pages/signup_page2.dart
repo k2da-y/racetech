@@ -123,7 +123,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
                 children: [
 
                   const Text(
-                    "Account Details 🔐",
+                    "Account Details",
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -248,10 +248,14 @@ class _SignUpPage2State extends State<SignUpPage2> {
                             ),
                           ),
                           onPressed: createAccount,
-                          child: const Text("Create"),
+                          child: const Text("Create",
+                            style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-
+                       ),
+                      )
                     ],
                   ),
 
