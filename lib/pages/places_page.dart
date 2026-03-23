@@ -382,6 +382,11 @@ class _RegisterDialogState extends State<RegisterDialog> {
                 },
               ),
 
+              const Text(
+                "pili ka ng size mo teh",
+                textAlign: TextAlign.left,
+              ),
+
             ],
 
             if (step == 1) ...[

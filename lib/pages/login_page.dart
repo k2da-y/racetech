@@ -10,13 +10,16 @@ class LoginPage extends StatelessWidget {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0F2027), Color(0xFF2C5364)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+        decoration: BoxDecoration(
+          image: const DecorationImage(
+            image: AssetImage("assets/login_bg.jpg"),
+            fit: BoxFit.cover,
           ),
         ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5), // 🔥 dark overlay
+          ),
         child: Center(
           child: SingleChildScrollView(
             child: Container(
@@ -109,7 +112,7 @@ class LoginPage extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: Colors.redAccent,
                       ),
                       onPressed: () {
                         Navigator.pushReplacement(
@@ -121,7 +124,7 @@ class LoginPage extends StatelessWidget {
                       },
                       child: const Text(
                         "Login",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
                     ),
                   ),
@@ -159,6 +162,7 @@ class LoginPage extends StatelessWidget {
           ),
         ),
       ),
-    );
+    )
+   );
   }
 }

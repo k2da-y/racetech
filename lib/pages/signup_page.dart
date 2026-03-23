@@ -43,6 +43,11 @@ class _SignUpPageState extends State<SignUpPage> {
             end: Alignment.bottomCenter,
           ),
         ),
+
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.5), // 🔥 dark overlay
+          ),
         child: Center(
           child: SingleChildScrollView(
             child: Container(
@@ -178,11 +183,12 @@ class _SignUpPageState extends State<SignUpPage> {
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        backgroundColor: Colors.pinkAccent,
+                        backgroundColor: Colors.redAccent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -224,13 +230,13 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     ],
                   ),
-
                 ],
               ),
             ),
           ),
         ),
       ),
+     )
     );
   }
 }
