@@ -174,7 +174,7 @@ class _PlacesPageState extends State<PlacesPage> {
                 children: [
 
                   const Text(
-                    "📅 March 29, 2026\n⏰ 6:00 AM",
+                    "Participants: 10/100\n March 29, 2026\n 6:00 AM",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -199,14 +199,14 @@ class _PlacesPageState extends State<PlacesPage> {
                       },
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 15),
-                        backgroundColor: Colors.black,
+                        backgroundColor: Colors.pink[200],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
                       child: const Text(
                         "Join Event",
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 16, color:Colors.white),
                       ),
                     ),
                   )
@@ -327,7 +327,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
 
             // TITLE + STEP
             Text(
-              "Register (${step + 1}/3)",
+              "Register (${step + 1}/2)",
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -342,7 +342,23 @@ class _RegisterDialogState extends State<RegisterDialog> {
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
-                  hintText: "Full Name",
+                  hintText: "First Name:",
+                  prefixIcon: const Icon(Icons.person),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  hintText: "Last Name:",
                   prefixIcon: const Icon(Icons.person),
                   filled: true,
                   fillColor: Colors.grey[100],
@@ -383,38 +399,13 @@ class _RegisterDialogState extends State<RegisterDialog> {
               ),
 
               const Text(
-                "pili ka ng size mo teh",
+                "This shirt sizes are for FREE!",
                 textAlign: TextAlign.left,
               ),
 
             ],
 
             if (step == 1) ...[
-              DropdownButtonFormField<String>(
-                value: paymentMethod,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.payment),
-                  filled: true,
-                  fillColor: Colors.grey[100],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                items: const [
-                  DropdownMenuItem(value: "GCash", child: Text("GCash")),
-                  DropdownMenuItem(value: "PayMaya", child: Text("PayMaya")),
-                  DropdownMenuItem(value: "Bank Transfer", child: Text("Bank Transfer")),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    paymentMethod = value!;
-                  });
-                },
-              ),
-            ],
-
-            if (step == 2) ...[
               const Text(
                 "I hereby declare that I am physically and medically fit to participate in this event. "
                     "I fully understand and acknowledge the risks involved, including possible injury or accident. "
@@ -455,7 +446,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
                   child: ElevatedButton(
                     onPressed: () {
 
-                      if (step < 2) {
+                      if (step < 1) {
                         setState(() {
                           step++;
                         });
@@ -484,7 +475,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
                         );
                       }
                     },
-                    child: Text(step < 2 ? "Next" : "Submit"),
+                    child: Text(step < 1 ? "Next" : "Submit"),
                   ),
                 ),
 

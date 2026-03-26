@@ -41,7 +41,7 @@ class LoginPage extends StatelessWidget {
                 children: [
 
                   const Text(
-                    "Welcome Back 👋",
+                    "Welcome to Racetech",
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

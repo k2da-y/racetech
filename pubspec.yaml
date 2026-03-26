@@ -43,6 +43,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   http: ^0.13.6
+  shared_preferences: ^2.2.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -58,10 +59,7 @@ dev_dependencies:
 flutter:
 
   assets:
-    - assets/hiking.jpg
     - assets/map.jpg
-    - assets/marathon.jpg
-    - assets/running.jpg
     - assets/login_bg.jpg
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
