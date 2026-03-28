@@ -27,7 +27,7 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
       return;
     }
 
-    // 👉 API call here (Laravel / Firebase)
+    //API call here (Laravel)
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Password updated successfully")),

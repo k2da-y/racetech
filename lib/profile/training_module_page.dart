@@ -7,7 +7,7 @@ class TrainingModulePage extends StatelessWidget {
       String title,
       String description,
       String difficulty,
-      double progress, // 🔥 NEW
+      double progress,
       ) {
     Color color;
 
@@ -76,7 +76,6 @@ class TrainingModulePage extends StatelessWidget {
 
           const SizedBox(height: 12),
 
-          // 🔥 PROGRESS BAR
           LinearProgressIndicator(
             value: progress,
             minHeight: 8,
@@ -85,7 +84,6 @@ class TrainingModulePage extends StatelessWidget {
 
           const SizedBox(height: 5),
 
-          // 🔥 PERCENT TEXT
           Text(
             "${(progress * 100).toInt()}% completed",
             style: const TextStyle(fontSize: 12),
@@ -102,7 +100,7 @@ class TrainingModulePage extends StatelessWidget {
       backgroundColor: Colors.grey[100],
 
       appBar: AppBar(
-        title: const Text("Training Module 🎯"),
+        title: const Text("Training Module"),
       ),
 
       body: SingleChildScrollView(
@@ -111,7 +109,6 @@ class TrainingModulePage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // 🔥 DAILY
             const Text(
               "Daily Quests",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -123,7 +120,6 @@ class TrainingModulePage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // 🔥 WEEKLY
             const Text(
               "Weekly Quests",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -142,7 +138,6 @@ class TrainingModulePage extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // 🔥 MONTHLY
             const Text(
               "Monthly Challenges (Hard)",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -153,7 +148,6 @@ class TrainingModulePage extends StatelessWidget {
             questCard("Consistency Pro", "15 ride days", "Hard", 0.6),
             questCard("Event Finisher", "Finish event", "Hard", 0.1),
             questCard("Endurance Test", "50km nonstop", "Hard", 0.5),
-
           ],
         ),
       ),

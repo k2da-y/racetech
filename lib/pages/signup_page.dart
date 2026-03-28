@@ -85,7 +85,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   const SizedBox(height: 25),
 
-                  // FIRST NAME
                   TextField(
                     controller: firstNameController,
                     decoration: InputDecoration(
@@ -102,7 +101,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   const SizedBox(height: 15),
 
-                  // LAST NAME
                   TextField(
                     controller: lastNameController,
                     decoration: InputDecoration(
@@ -119,7 +117,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   const SizedBox(height: 15),
 
-                  // GENDER DROPDOWN
                   DropdownButtonFormField<String>(
                     value: selectedGender,
                     decoration: InputDecoration(
@@ -146,7 +143,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   const SizedBox(height: 15),
 
-                  // BIRTHDAY PICKER
                   GestureDetector(
                     onTap: pickBirthday,
                     child: Container(
@@ -174,10 +170,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 25),
 
-                  // NEXT BUTTON
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -188,7 +182,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-
                       onPressed: () {
                         Navigator.push(
                           context,
@@ -211,7 +204,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   const SizedBox(height: 15),
 
-                  // BACK TO LOGIN
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

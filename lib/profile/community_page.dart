@@ -21,7 +21,6 @@ class _CommunityPageState extends State<CommunityPage> {
   File? selectedMedia;
   final picker = ImagePicker();
 
-  // PICK IMAGE
   Future<void> pickImage() async {
     final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
@@ -31,7 +30,6 @@ class _CommunityPageState extends State<CommunityPage> {
     }
   }
 
-  // PICK VIDEO
   Future<void> pickVideo() async {
     final picked = await picker.pickVideo(source: ImageSource.gallery);
     if (picked != null) {
@@ -41,7 +39,6 @@ class _CommunityPageState extends State<CommunityPage> {
     }
   }
 
-  // CREATE POST
   void addPost() {
     if (titleController.text.isEmpty || contentController.text.isEmpty) return;
 
@@ -61,7 +58,6 @@ class _CommunityPageState extends State<CommunityPage> {
     Navigator.pop(context);
   }
 
-  // UPDATE
   void updatePost(Post post) {
     titleController.text = post.title;
     contentController.text = post.content;
@@ -95,14 +91,12 @@ class _CommunityPageState extends State<CommunityPage> {
     );
   }
 
-  // DELETE
   void deletePost(Post post) {
     setState(() {
       posts.remove(post);
     });
   }
 
-  // CREATE DIALOG
   void showAddDialog() {
     showDialog(
       context: context,
@@ -169,7 +163,6 @@ class _CommunityPageState extends State<CommunityPage> {
       body: Column(
         children: [
 
-          // 🔥 ABOUT + FOLLOW SECTION
           Padding(
             padding: const EdgeInsets.all(15),
             child: Row(
@@ -211,12 +204,10 @@ class _CommunityPageState extends State<CommunityPage> {
                     child: const Text("Follow Us"),
                   ),
                 ),
-
               ],
             ),
           ),
 
-          // 🔥 POSTS
           Expanded(
             child: ListView.builder(
               itemCount: posts.length,
@@ -234,7 +225,6 @@ class _CommunityPageState extends State<CommunityPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-
                         ListTile(
                           title: Text(post.title),
                           subtitle: Text(post.content),
@@ -253,7 +243,6 @@ class _CommunityPageState extends State<CommunityPage> {
                           ),
                         ),
 
-                        // 🔥 MEDIA PREVIEW
                         if (post.media != null)
                           ClipRRect(
                             borderRadius: const BorderRadius.vertical(
@@ -273,7 +262,6 @@ class _CommunityPageState extends State<CommunityPage> {
               },
             ),
           ),
-
         ],
       ),
     );

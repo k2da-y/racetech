@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import '../profile/community_page.dart';
+import '../profile/badges_page.dart';
 import 'user_profile_page.dart';
+import '../profile/training_module_page.dart';
+import '../profile/create_post.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -23,7 +27,7 @@ class _PlacesPageState extends State<PlacesPage> {
       "content": "First time ko dito, let's go!",
     },
   ];
-
+  int selectedIndex = 0;
   int currentIndex = 0;
 
   final List<String> images = [
@@ -52,7 +56,6 @@ class _PlacesPageState extends State<PlacesPage> {
           child: Column(
           children: [
 
-            // 🔥 MODERN APP BAR
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               child: Row(
@@ -85,7 +88,6 @@ class _PlacesPageState extends State<PlacesPage> {
               ),
             ),
 
-            // TITLE
             const Text(
               "Events",
               style: TextStyle(
@@ -96,7 +98,6 @@ class _PlacesPageState extends State<PlacesPage> {
 
             const SizedBox(height: 20),
 
-            // 🔥 IMAGE CARD
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Stack(
@@ -113,7 +114,6 @@ class _PlacesPageState extends State<PlacesPage> {
                     ),
                   ),
 
-                  // arrows
                   Positioned(
                     left: 10,
                     top: 90,
@@ -137,14 +137,12 @@ class _PlacesPageState extends State<PlacesPage> {
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // EVENT TITLE
             const Text(
               "CAVITE LOOP",
               style: TextStyle(
@@ -155,7 +153,6 @@ class _PlacesPageState extends State<PlacesPage> {
 
             const SizedBox(height: 20),
 
-            // 🔥 EVENT CARD
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(20),
@@ -172,7 +169,6 @@ class _PlacesPageState extends State<PlacesPage> {
               ),
               child: Column(
                 children: [
-
                   const Text(
                     "Participants: 10/100\n March 29, 2026\n 6:00 AM",
                     textAlign: TextAlign.center,
@@ -216,7 +212,6 @@ class _PlacesPageState extends State<PlacesPage> {
 
             const SizedBox(height: 25),
 
-            // 🔥 COMMUNITY POSTS TITLE
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: Align(
@@ -233,14 +228,12 @@ class _PlacesPageState extends State<PlacesPage> {
 
             const SizedBox(height: 15),
 
-            // 🔥 POSTS LIST
             SizedBox(
               height: 250, // scrollable height
               child: ListView.builder(
                 scrollDirection: Axis.vertical,
                 itemCount: posts.length,
                 itemBuilder: (context, index) {
-
                   final post = posts[index];
 
                   return Padding(
@@ -260,7 +253,6 @@ class _PlacesPageState extends State<PlacesPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
                           Row(
                             children: [
                               const CircleAvatar(
@@ -275,11 +267,8 @@ class _PlacesPageState extends State<PlacesPage> {
                               ),
                             ],
                           ),
-
                           const SizedBox(height: 10),
-
                           Text(post["content"]!),
-
                         ],
                       ),
                     ),
@@ -287,10 +276,106 @@ class _PlacesPageState extends State<PlacesPage> {
                 },
               ),
             ),
-
           ],
         ),
         )
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(15),
+        child: Container(
+          height: 70,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(35),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+              )
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.menu_book_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const TrainingModulePage(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.groups_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CommunityPage(),
+                    ),
+                  );
+                },
+              ),
+              GestureDetector(
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const CreatePostSheet(),
+                  );
+                },
+                child: Container(
+                  height: 55,
+                  width: 55,
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.notifications_none,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => const AlertDialog(
+                      title: Text("Notifications"),
+                      content: Text("No notifications yet 🔔"),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.emoji_events_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const BadgesPage(),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -325,7 +410,6 @@ class _RegisterDialogState extends State<RegisterDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
 
-            // TITLE + STEP
             Text(
               "Register (${step + 1}/2)",
               style: const TextStyle(
@@ -338,7 +422,6 @@ class _RegisterDialogState extends State<RegisterDialog> {
 
             if (step == 0) ...[
 
-              // FULL NAME
               TextField(
                 controller: nameController,
                 decoration: InputDecoration(
@@ -371,7 +454,6 @@ class _RegisterDialogState extends State<RegisterDialog> {
 
               const SizedBox(height: 12),
 
-              // 🔥 SHIRT SIZE DROPDOWN
               DropdownButtonFormField<String>(
                 value: size,
                 decoration: InputDecoration(
@@ -478,7 +560,6 @@ class _RegisterDialogState extends State<RegisterDialog> {
                     child: Text(step < 1 ? "Next" : "Submit"),
                   ),
                 ),
-
               ],
             )
           ],

@@ -57,7 +57,6 @@ class LoginPage extends StatelessWidget {
 
                   const SizedBox(height: 25),
 
-                  // EMAIL FIELD
                   TextField(
                     decoration: InputDecoration(
                       hintText: "Email",
@@ -73,7 +72,6 @@ class LoginPage extends StatelessWidget {
 
                   const SizedBox(height: 15),
 
-                  // PASSWORD FIELD
                   TextField(
                     obscureText: true,
                     decoration: InputDecoration(
@@ -90,7 +88,6 @@ class LoginPage extends StatelessWidget {
 
                   const SizedBox(height: 10),
 
-                  // FORGOT PASSWORD
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
@@ -103,7 +100,6 @@ class LoginPage extends StatelessWidget {
 
                   const SizedBox(height: 10),
 
-                  // LOGIN BUTTON
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -131,7 +127,6 @@ class LoginPage extends StatelessWidget {
 
                   const SizedBox(height: 15),
 
-                  // SIGN UP
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -155,7 +150,6 @@ class LoginPage extends StatelessWidget {
                       ),
                     ],
                   ),
-
                 ],
               ),
             ),

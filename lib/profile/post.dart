@@ -2,7 +2,7 @@ class Post {
   String id;
   String title;
   String content;
-  String? media; // 🔥 NEW
+  String? media;
 
   Post({
     required this.id,

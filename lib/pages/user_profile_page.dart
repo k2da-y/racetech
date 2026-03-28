@@ -137,7 +137,6 @@ class UserProfilePage extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // 🔥 ACCOUNT SECTION
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(15),
@@ -256,7 +255,6 @@ class UserProfilePage extends StatelessWidget {
               ),
 
               const SizedBox(height: 20),
-
             ],
           ),
         ),

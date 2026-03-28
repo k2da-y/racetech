@@ -31,7 +31,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
   void createAccount() {
 
-    // ✅ EMPTY FIELD VALIDATION
     if (usernameController.text.isEmpty ||
         passwordController.text.isEmpty ||
         confirmPasswordController.text.isEmpty) {
@@ -46,7 +45,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
       return;
     }
 
-    // ✅ PASSWORD MATCH VALIDATION
     if (passwordController.text != confirmPasswordController.text) {
       showDialog(
         context: context,
@@ -58,7 +56,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
       return;
     }
 
-    // ✅ SUCCESS POPUP + AUTO REDIRECT
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -68,10 +65,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
         actions: [
           TextButton(
             onPressed: () {
-
-              Navigator.pop(context); // close dialog
-
-              // 🔥 AUTO GO TO LOGIN
+              Navigator.pop(context);
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
@@ -139,7 +133,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
                   const SizedBox(height: 25),
 
-                  // USERNAME
                   TextField(
                     controller: usernameController,
                     decoration: InputDecoration(
@@ -156,7 +149,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
                   const SizedBox(height: 15),
 
-                  // PASSWORD
                   TextField(
                     controller: passwordController,
                     obscureText: obscurePassword,
@@ -186,7 +178,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
                   const SizedBox(height: 15),
 
-                  // CONFIRM PASSWORD
                   TextField(
                     controller: confirmPasswordController,
                     obscureText: obscureConfirm,
@@ -219,7 +210,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   Row(
                     children: [
 
-                      // BACK
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
@@ -237,7 +227,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
                       const SizedBox(width: 10),
 
-                      // CREATE ACCOUNT
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -258,7 +247,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
                       )
                     ],
                   ),
-
                 ],
               ),
             ),
