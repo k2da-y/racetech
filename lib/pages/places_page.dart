@@ -13,38 +13,34 @@ class PlacesPage extends StatefulWidget {
 }
 
 class _PlacesPageState extends State<PlacesPage> {
+
+  //COMMUNITY POSTS DATA
   List<Map<String, String>> posts = [
-    {
-      "name": "Juan Dela Cruz",
-      "content": "Excited for this event! 🔥",
-    },
-    {
-      "name": "Maria Santos",
-      "content": "Sino sasama? Tara ride tayo 🚴",
-    },
-    {
-      "name": "Alex Reyes",
-      "content": "First time ko dito, let's go!",
-    },
+    {"name": "Jan Jowell Diestro", "content": "Dubai chewy cookie? ano tara?"},
+    {"name": "Trixie Ann Apan", "content": "Tara tambay sa pula"},
+    {"name": "Keith Garcia", "content": "Ilocos Empanada? ano tara?"},
   ];
-  int selectedIndex = 0;
+
+  //TRACK CURRENT CAROUSEL INDEX
   int currentIndex = 0;
 
-  final List<String> images = [
-    "assets/map.jpg",
+  //EVENTS DATA (USED IN CAROUSEL)
+  final List<Map<String, dynamic>> events = [
+    {
+      "title": "Cavite Loop",
+      "image": "assets/map.jpg",
+      "participants": "10/100",
+      "date": "March 29, 2026",
+      "time": "6:00 AM",
+    },
+    {
+      "title": "Tagaytay Ride",
+      "image": "assets/map.jpg",
+      "participants": "25/100",
+      "date": "April 5, 2026",
+      "time": "5:30 AM",
+    },
   ];
-
-  void nextImage() {
-    setState(() {
-      currentIndex = (currentIndex + 1) % images.length;
-    });
-  }
-
-  void previousImage() {
-    setState(() {
-      currentIndex = (currentIndex - 1 + images.length) % images.length;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,232 +50,241 @@ class _PlacesPageState extends State<PlacesPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
-          children: [
+            children: [
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
+              //HEADER (APP TITLE + PROFILE)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
 
-                  const Text(
-                    "RaceTech",
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                    const Text(
+                      "RaceTech",
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                     ),
-                  ),
 
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const UserProfilePage(),
-                        ),
-                      );
-                    },
-                    child: const CircleAvatar(
-                      backgroundColor: Colors.black,
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const Text(
-              "Events",
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Stack(
-                children: [
-
-                  Container(
-                    height: 220,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      image: DecorationImage(
-                        image: AssetImage(images[currentIndex]),
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    left: 10,
-                    top: 90,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black54,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: previousImage,
-                      ),
-                    ),
-                  ),
-
-                  Positioned(
-                    right: 10,
-                    top: 90,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black54,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                        onPressed: nextImage,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              "CAVITE LOOP",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    blurRadius: 10,
-                    color: Colors.black.withOpacity(0.1),
-                    offset: const Offset(0, 5),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    "Participants: 10/100\n March 29, 2026\n 6:00 AM",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  const Text(
-                    "Join the Cavite Loop ride. Experience scenic routes and a fun community ride!",
-                    textAlign: TextAlign.center,
-                  ),
-
-                  const SizedBox(height: 25),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => const RegisterDialog(),
+                    //PROFILE BUTTON
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const UserProfilePage(),
+                          ),
                         );
                       },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        backgroundColor: Colors.pink[200],
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Join Event",
-                        style: TextStyle(fontSize: 16, color:Colors.white),
+                      child: const CircleAvatar(
+                        backgroundColor: Colors.black,
+                        child: Icon(Icons.person, color: Colors.white),
                       ),
                     ),
-                  )
-                ],
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 25),
+              //EVENTS TITLE
+              const Text(
+                "Events",
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              ),
 
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  "Community Posts",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              const SizedBox(height: 20),
+
+              //EVENT CAROUSEL
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+
+                    SizedBox(
+                      height: 250,
+                      child: PageView.builder(
+                        itemCount: events.length,
+                        controller: PageController(viewportFraction: 0.9),
+
+                        //UPDATE CURRENT INDEX (for dots)
+                        onPageChanged: (index) {
+                          setState(() {
+                            currentIndex = index;
+                          });
+                        },
+
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+
+                            //CARD DESIGN
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              image: DecorationImage(
+                                image: AssetImage(event["image"]),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+
+                            //DARK OVERLAY
+                            child: Container(
+                              padding: const EdgeInsets.all(15),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20),
+                                color: Colors.black.withOpacity(0.4),
+                              ),
+
+                              //EVENT DETAILS INSIDE CARD
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+
+                                  //TITLE
+                                  Text(
+                                    event["title"],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 8),
+
+                                  // 👥 PARTICIPANTS
+                                  Text(
+                                    "Participants: ${event["participants"]}",
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+
+                                  // 📅 DATE + TIME
+                                  Text(
+                                    "${event["date"]} • ${event["time"]}",
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+
+                                  const SizedBox(height: 10),
+
+                                  //JOIN BUTTON
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => const RegisterDialog(),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.pink,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      child: const Text("Join Event"),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    //CAROUSEL DOT INDICATOR
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(events.length, (index) {
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: currentIndex == index ? 12 : 8,
+                          height: currentIndex == index ? 12 : 8,
+                          decoration: BoxDecoration(
+                            color: currentIndex == index ? Colors.pink : Colors.grey,
+                            shape: BoxShape.circle,
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
+              //COMMUNITY
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Community Posts",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
-            ),
 
-            const SizedBox(height: 15),
+              const SizedBox(height: 15),
 
-            SizedBox(
-              height: 250, // scrollable height
-              child: ListView.builder(
-                scrollDirection: Axis.vertical,
-                itemCount: posts.length,
-                itemBuilder: (context, index) {
-                  final post = posts[index];
+              //POSTS LIST
+              SizedBox(
+                height: 250,
+                child: ListView.builder(
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    final post = posts[index];
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(15),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: [
-                          BoxShadow(
-                            blurRadius: 8,
-                            color: Colors.black.withOpacity(0.1),
-                          )
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const CircleAvatar(
-                                child: Icon(Icons.person),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                post["name"]!,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 8,
+                              color: Colors.black.withOpacity(0.1),
+                            )
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+
+                            //USER INFO SA NAVIGATION
+                            Row(
+                              children: [
+                                const CircleAvatar(
+                                  child: Icon(Icons.person),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          Text(post["content"]!),
-                        ],
+                                const SizedBox(width: 10),
+                                Text(
+                                  post["name"]!,
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 10),
+
+                            //POST CONTENT SA NAVIGATION
+                            Text(post["content"]!),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        )
       ),
+      //CUSTOM BOTTOM NAVIGATION
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(15),
         child: Container(
@@ -294,44 +299,41 @@ class _PlacesPageState extends State<PlacesPage> {
               )
             ],
           ),
+
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
+
+              //TRAINING SA NAVIGATION
               IconButton(
-                icon: const Icon(
-                  Icons.menu_book_outlined,
-                  color: Colors.grey,
-                ),
+                icon: const Icon(Icons.menu_book_outlined, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const TrainingModulePage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const TrainingModulePage()),
                   );
                 },
               ),
+
+              //COMMUNITY SA NAVIGATION
               IconButton(
-                icon: const Icon(
-                  Icons.groups_outlined,
-                  color: Colors.grey,
-                ),
+                icon: const Icon(Icons.groups_outlined, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const CommunityPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const CommunityPage()),
                   );
                 },
               ),
+
+              //CREATE POST SA NAVIGATION
               GestureDetector(
                 onTap: () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
-                    builder: (context) => const CreatePostSheet(),
+                    builder: (_) => const CreatePostSheet(),
                   );
                 },
                 child: Container(
@@ -344,11 +346,10 @@ class _PlacesPageState extends State<PlacesPage> {
                   child: const Icon(Icons.add, color: Colors.white),
                 ),
               ),
+
+              //NOTIFICATIONS SA NAVIGATION
               IconButton(
-                icon: const Icon(
-                  Icons.notifications_none,
-                  color: Colors.grey,
-                ),
+                icon: const Icon(Icons.notifications_none, color: Colors.grey),
                 onPressed: () {
                   showDialog(
                     context: context,
@@ -359,17 +360,14 @@ class _PlacesPageState extends State<PlacesPage> {
                   );
                 },
               ),
+
+              //BADGES SA NAVIGATION
               IconButton(
-                icon: const Icon(
-                  Icons.emoji_events_outlined,
-                  color: Colors.grey,
-                ),
+                icon: const Icon(Icons.emoji_events_outlined, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const BadgesPage(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const BadgesPage()),
                   );
                 },
               ),
@@ -380,7 +378,7 @@ class _PlacesPageState extends State<PlacesPage> {
     );
   }
 }
-
+//REGISTRATION DIALOG SA JOIN EVENT BOTTON
 class RegisterDialog extends StatefulWidget {
   const RegisterDialog({super.key});
 
