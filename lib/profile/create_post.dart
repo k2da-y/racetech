@@ -5,8 +5,11 @@ import 'package:image_picker/image_picker.dart';
 import '../profile/post.dart';
 
 class CreatePostSheet extends StatefulWidget {
-  const CreatePostSheet({super.key});
-
+  final Function(String, String) onPost;
+  const CreatePostSheet({
+    super.key,
+    required this.onPost,
+  });
 
   @override
   State<CreatePostSheet> createState() => _CreatePostSheetState();
@@ -169,24 +172,21 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: () {
+
+                  //prevent empty post
                   if (titleController.text.isEmpty ||
                       contentController.text.isEmpty) {
-
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Please fill all fields"),
-                      ),
-                    );
                     return;
                   }
 
-                  Navigator.pop(context);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Post created!"),
-                    ),
+                  //send data back to PlacesPage
+                  widget.onPost(
+                    titleController.text,
+                    contentController.text,
                   );
+
+                  //close modal
+                  Navigator.pop(context);
                 },
                 child: const Text(
                   "Post",

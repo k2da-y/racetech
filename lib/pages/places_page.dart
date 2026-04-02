@@ -13,12 +13,27 @@ class PlacesPage extends StatefulWidget {
 }
 
 class _PlacesPageState extends State<PlacesPage> {
+  void addPost(String title, String content) {
+    setState(() {
+      posts.insert(0, {
+        "name": "You",
+        "content": "$title\n$content",
+        "likes": 0,
+        "liked": false,
+        "comments": <String>[],
+      });
+    });
+  }
 
   //COMMUNITY POSTS DATA
-  List<Map<String, String>> posts = [
-    {"name": "Jan Jowell Diestro", "content": "Dubai chewy cookie? ano tara?"},
-    {"name": "Trixie Ann Apan", "content": "Tara tambay sa pula"},
-    {"name": "Keith Garcia", "content": "Ilocos Empanada? ano tara?"},
+  List<Map<String, dynamic>> posts = [
+    {
+      "name": "Jan Jowell Diestro",
+      "content": "Dubai chewy cookie? ano tara?",
+      "likes": 0,
+      "liked": false,
+      "comments": <String>[],
+    },
   ];
 
   //TRACK CURRENT CAROUSEL INDEX
@@ -27,7 +42,6 @@ class _PlacesPageState extends State<PlacesPage> {
   //EVENTS DATA (USED IN CAROUSEL)
   final List<Map<String, dynamic>> events = [
     {
-      "event": "Marathon",
       "title": "Cavite Loop",
       "image": "assets/map.jpg",
       "participants": "10/100",
@@ -35,20 +49,11 @@ class _PlacesPageState extends State<PlacesPage> {
       "time": "6:00 AM",
     },
     {
-      "event": "Bike Race",
       "title": "Tagaytay Ride",
       "image": "assets/map.jpg",
       "participants": "25/100",
       "date": "April 5, 2026",
       "time": "5:30 AM",
-    },
-    {
-      "event": "Duathlon",
-      "title": "Bako Loop",
-      "image": "assets/map.jpg",
-      "participants": "67/100",
-      "date": "April 27, 2026",
-      "time": "3:00 AM",
     },
   ];
 
@@ -149,16 +154,6 @@ class _PlacesPageState extends State<PlacesPage> {
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
 
-                                  //EVENT TYPE
-                                  Text(
-                                    event["event"],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-
                                   //TITLE
                                   Text(
                                     event["title"],
@@ -171,13 +166,13 @@ class _PlacesPageState extends State<PlacesPage> {
 
                                   const SizedBox(height: 8),
 
-                                  //PARTICIPANTS
+                                  // 👥 PARTICIPANTS
                                   Text(
                                     "Participants: ${event["participants"]}",
                                     style: const TextStyle(color: Colors.white),
                                   ),
 
-                                  //DATE + TIME
+                                  // 📅 DATE + TIME
                                   Text(
                                     "${event["date"]} • ${event["time"]}",
                                     style: const TextStyle(color: Colors.white),
@@ -196,14 +191,12 @@ class _PlacesPageState extends State<PlacesPage> {
                                         );
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red.shade300,
+                                        backgroundColor: Colors.pink,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                       ),
-                                      child: const Text("Join Event",
-                                          style: TextStyle(color: Colors.white),
-                                      ),
+                                      child: const Text("Join Event"),
                                     ),
                                   ),
                                 ],
@@ -225,7 +218,7 @@ class _PlacesPageState extends State<PlacesPage> {
                           width: currentIndex == index ? 12 : 8,
                           height: currentIndex == index ? 12 : 8,
                           decoration: BoxDecoration(
-                            color: currentIndex == index ? Colors.redAccent : Colors.grey,
+                            color: currentIndex == index ? Colors.pink : Colors.grey,
                             shape: BoxShape.circle,
                           ),
                         );
@@ -355,7 +348,9 @@ class _PlacesPageState extends State<PlacesPage> {
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
-                    builder: (_) => const CreatePostSheet(),
+                    builder: (_) => CreatePostSheet(
+                      onPost: addPost,
+                    ),
                   );
                 },
                 child: Container(
