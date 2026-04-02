@@ -32,7 +32,6 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("Password updated successfully")),
     );
-
     Navigator.pop(context);
   }
 

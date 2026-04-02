@@ -28,7 +28,7 @@ class _PlacesPageState extends State<PlacesPage> {
   //COMMUNITY POSTS DATA
   List<Map<String, dynamic>> posts = [
     {
-      "name": "Jan Jowell Diestro",
+      "name": "Keith Garcia",
       "content": "Dubai chewy cookie? ano tara?",
       "likes": 0,
       "liked": false,
@@ -42,6 +42,7 @@ class _PlacesPageState extends State<PlacesPage> {
   //EVENTS DATA (USED IN CAROUSEL)
   final List<Map<String, dynamic>> events = [
     {
+      "event": "Marathon",
       "title": "Cavite Loop",
       "image": "assets/map.jpg",
       "participants": "10/100",
@@ -49,6 +50,7 @@ class _PlacesPageState extends State<PlacesPage> {
       "time": "6:00 AM",
     },
     {
+      "event": "Bike Race",
       "title": "Tagaytay Ride",
       "image": "assets/map.jpg",
       "participants": "25/100",
@@ -154,9 +156,8 @@ class _PlacesPageState extends State<PlacesPage> {
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
 
-                                  //TITLE
                                   Text(
-                                    event["title"],
+                                    event["event"],
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 20,
@@ -164,15 +165,25 @@ class _PlacesPageState extends State<PlacesPage> {
                                     ),
                                   ),
 
+                                  //TITLE
+                                  Text(
+                                    event["title"],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+
                                   const SizedBox(height: 8),
 
-                                  // 👥 PARTICIPANTS
+                                  //PARTICIPANTS
                                   Text(
                                     "Participants: ${event["participants"]}",
                                     style: const TextStyle(color: Colors.white),
                                   ),
 
-                                  // 📅 DATE + TIME
+                                  //DATE + TIME
                                   Text(
                                     "${event["date"]} • ${event["time"]}",
                                     style: const TextStyle(color: Colors.white),
