@@ -27,6 +27,7 @@ class _PlacesPageState extends State<PlacesPage> {
   //EVENTS DATA (USED IN CAROUSEL)
   final List<Map<String, dynamic>> events = [
     {
+      "event": "Marathon",
       "title": "Cavite Loop",
       "image": "assets/map.jpg",
       "participants": "10/100",
@@ -34,11 +35,20 @@ class _PlacesPageState extends State<PlacesPage> {
       "time": "6:00 AM",
     },
     {
+      "event": "Bike Race",
       "title": "Tagaytay Ride",
       "image": "assets/map.jpg",
       "participants": "25/100",
       "date": "April 5, 2026",
       "time": "5:30 AM",
+    },
+    {
+      "event": "Duathlon",
+      "title": "Bako Loop",
+      "image": "assets/map.jpg",
+      "participants": "67/100",
+      "date": "April 27, 2026",
+      "time": "3:00 AM",
     },
   ];
 
@@ -139,6 +149,16 @@ class _PlacesPageState extends State<PlacesPage> {
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
 
+                                  //EVENT TYPE
+                                  Text(
+                                    event["event"],
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+
                                   //TITLE
                                   Text(
                                     event["title"],
@@ -151,13 +171,13 @@ class _PlacesPageState extends State<PlacesPage> {
 
                                   const SizedBox(height: 8),
 
-                                  // 👥 PARTICIPANTS
+                                  //PARTICIPANTS
                                   Text(
                                     "Participants: ${event["participants"]}",
                                     style: const TextStyle(color: Colors.white),
                                   ),
 
-                                  // 📅 DATE + TIME
+                                  //DATE + TIME
                                   Text(
                                     "${event["date"]} • ${event["time"]}",
                                     style: const TextStyle(color: Colors.white),
@@ -176,12 +196,14 @@ class _PlacesPageState extends State<PlacesPage> {
                                         );
                                       },
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.pink,
+                                        backgroundColor: Colors.red.shade300,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                       ),
-                                      child: const Text("Join Event"),
+                                      child: const Text("Join Event",
+                                          style: TextStyle(color: Colors.white),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -203,7 +225,7 @@ class _PlacesPageState extends State<PlacesPage> {
                           width: currentIndex == index ? 12 : 8,
                           height: currentIndex == index ? 12 : 8,
                           decoration: BoxDecoration(
-                            color: currentIndex == index ? Colors.pink : Colors.grey,
+                            color: currentIndex == index ? Colors.redAccent : Colors.grey,
                             shape: BoxShape.circle,
                           ),
                         );
