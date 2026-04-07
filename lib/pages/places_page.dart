@@ -4,6 +4,7 @@ import '../profile/badges_page.dart';
 import 'user_profile_page.dart';
 import '../profile/training_module_page.dart';
 import '../profile/create_post.dart';
+import 'search_page.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -207,7 +208,9 @@ class _PlacesPageState extends State<PlacesPage> {
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                       ),
-                                      child: const Text("Join Event"),
+                                      child: const Text("Join Event",
+                                          style: TextStyle(color: Colors.white),
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -341,13 +344,13 @@ class _PlacesPageState extends State<PlacesPage> {
                 },
               ),
 
-              //COMMUNITY SA NAVIGATION
+              //SEARCH PAGE
               IconButton(
-                icon: const Icon(Icons.groups_outlined, color: Colors.grey),
+                icon: const Icon(Icons.search_outlined, color: Colors.grey),
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CommunityPage()),
+                    MaterialPageRoute(builder: (_) => const SearchPage()),
                   );
                 },
               ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:racetechph/pages/places_page.dart';
 import 'signup_page.dart';
+import 'profiling_page.dart';
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -18,7 +18,7 @@ class LoginPage extends StatelessWidget {
         ),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5), // 🔥 dark overlay
+            color: Colors.black.withOpacity(0.5), //dark overlay
           ),
         child: Center(
           child: SingleChildScrollView(
@@ -114,7 +114,7 @@ class LoginPage extends StatelessWidget {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const PlacesPage(),
+                            builder: (context) => const ProfilingPage(),
                           ),
                         );
                       },
