@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../data/event_data.dart';
+import '../data/activity_data.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -11,35 +13,49 @@ class _SearchPageState extends State<SearchPage> {
 
   final TextEditingController searchController = TextEditingController();
 
-  //SAMPLE EVENTS
-  final List<Map<String, String>> events = [
-    {"title": "Cavite Loop", "date": "March 29"},
-    {"title": "Tagaytay Ride", "date": "April 5"},
-    {"title": "Manila Marathon", "date": "May 10"},
-    {"title": "Trail Run Baguio", "date": "June 2"},
-    {"title": "Duathlon Challenge", "date": "July 18"},
-  ];
+  List<String> activities = ActivityData.activities;
 
-  List<Map<String, String>> filteredEvents = [];
+  //GET EVENTS FROM event_data.dart
+  final List<Map<String, dynamic>> allEvents = EventData.events;
+
+  List<Map<String, dynamic>> filteredEvents = [];
 
   @override
   void initState() {
     super.initState();
-    filteredEvents = events;
+    filteredEvents = allEvents;
   }
 
-  //SEARCH FUNCTION
+  //IMPROVED SEARCH FUNCTION (TITLE + TYPE + TAGS)
   void searchEvent(String query) {
-    final results = events.where((event) {
-      return event["title"]!
-          .toLowerCase()
-          .contains(query.toLowerCase());
+
+    if (query.isEmpty) {
+      setState(() {
+        filteredEvents = allEvents;
+      });
+      return;
+    }
+
+    final search = query.toLowerCase();
+
+    final results = allEvents.where((event) {
+
+      final title = event["title"].toLowerCase();
+      final type = event["event"].toLowerCase();
+      final tags = (event["tags"] as List).join(" ").toLowerCase();
+
+      return title.contains(search) ||
+          type.contains(search) ||
+          tags.contains(search);
+
     }).toList();
 
     setState(() {
       filteredEvents = results;
     });
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +87,40 @@ class _SearchPageState extends State<SearchPage> {
                   borderRadius: BorderRadius.circular(15),
                   borderSide: BorderSide.none,
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 15),
+
+            //ACTIVITY CHIPS
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: activities.map((activity) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: GestureDetector(
+                      onTap: () {
+                        searchController.text = activity;
+                        searchEvent(activity);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          activity,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
 
@@ -116,31 +166,45 @@ class _SearchPageState extends State<SearchPage> {
                     child: Row(
                       children: [
 
-                        //IMAGE PLACEHOLDER
+                        //IMAGE
                         Container(
                           height: 50,
                           width: 50,
                           decoration: BoxDecoration(
-                            color: Colors.grey[300],
                             borderRadius: BorderRadius.circular(10),
+                            image: DecorationImage(
+                              image: AssetImage(event["image"]),
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                          child: const Icon(Icons.image),
                         ),
 
                         const SizedBox(width: 10),
 
                         //INFO
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              event["title"]!,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+
+                              Text(
+                                event["title"],
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
-                            ),
-                            Text(event["date"]!),
-                          ],
+
+                              const SizedBox(height: 3),
+
+                              Text(
+                                "${event["event"]} • ${event["date"]}",
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                ),
+                              ),
+
+                            ],
+                          ),
                         ),
 
                       ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'places_page.dart';
+import '../data/activity_data.dart';
 
 class ProfilingPage extends StatefulWidget {
   const ProfilingPage({super.key});
@@ -12,13 +13,7 @@ class ProfilingPage extends StatefulWidget {
 class _ProfilingPageState extends State<ProfilingPage> {
 
   //LIST OF AVAILABLE ACTIVITIES (MATCH THIS WITH EVENT TAGS)
-  final List<String> activitiesList = [
-    "Running",
-    "Cycling",
-    "Duathlon",
-    "Marathon",
-    "Trail Run",
-  ];
+  final List<String> activitiesList = ActivityData.activities;
 
   //SELECTED ACTIVITIES
   List<String> selectedActivities = [];
