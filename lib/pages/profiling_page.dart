@@ -11,13 +11,21 @@ class ProfilingPage extends StatefulWidget {
 
 class _ProfilingPageState extends State<ProfilingPage> {
 
-  //MULTIPLE SELECT ACTIVITIES
+  //LIST OF AVAILABLE ACTIVITIES (MATCH THIS WITH EVENT TAGS)
+  final List<String> activitiesList = [
+    "Running",
+    "Cycling",
+    "Duathlon",
+    "Marathon",
+    "Trail Run",
+  ];
+
+  //SELECTED ACTIVITIES
   List<String> selectedActivities = [];
 
   //SUBMIT PROFILE
   void finishProfiling() async {
 
-    //VALIDATION
     if (selectedActivities.isEmpty) {
       showDialog(
         context: context,
@@ -29,12 +37,13 @@ class _ProfilingPageState extends State<ProfilingPage> {
       return;
     }
 
-    //SAVE FIRST-TIME FLAG + ACTIVITIES
     final prefs = await SharedPreferences.getInstance();
+
+    // SAVE DATA
     await prefs.setBool("isProfiled", true);
     await prefs.setStringList("activities", selectedActivities);
 
-    //GO TO HOME
+    // GO TO PLACES PAGE
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
@@ -43,7 +52,7 @@ class _ProfilingPageState extends State<ProfilingPage> {
     );
   }
 
-  //SELECTABLE CHIP
+  //CHIP UI
   Widget buildChoice(String activity) {
     final isSelected = selectedActivities.contains(activity);
 
@@ -70,7 +79,6 @@ class _ProfilingPageState extends State<ProfilingPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
 
-            //CHECK ICON IF SELECTED
             if (isSelected)
               const Icon(Icons.check, color: Colors.white, size: 16),
 
@@ -80,6 +88,7 @@ class _ProfilingPageState extends State<ProfilingPage> {
               activity,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -104,7 +113,6 @@ class _ProfilingPageState extends State<ProfilingPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
 
-                  //TITLE
                   const Text(
                     "Welcome to RaceTech",
                     style: TextStyle(
@@ -116,17 +124,16 @@ class _ProfilingPageState extends State<ProfilingPage> {
                   const SizedBox(height: 10),
 
                   const Text(
-                    "What activities are you into?",
+                    "Choose your interests to personalize events",
                     style: TextStyle(color: Colors.grey),
                   ),
 
                   const SizedBox(height: 30),
 
-                  //ACTIVITY SECTION
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      "Select Activities",
+                      "Your Interests",
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -136,23 +143,17 @@ class _ProfilingPageState extends State<ProfilingPage> {
 
                   const SizedBox(height: 10),
 
+                  //DYNAMIC LIST (EASIER TO SCALE)
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
-                    children: [
-                      buildChoice("Running"),
-                      buildChoice("Cycling"),
-                      buildChoice("Duathlon"),
-                      buildChoice("Marathon"),
-                      buildChoice("Trail Run"),
-                      buildChoice("Matolog"),
-                      buildChoice("Magnetflix"),
-                    ],
+                    children: activitiesList
+                        .map((activity) => buildChoice(activity))
+                        .toList(),
                   ),
 
                   const SizedBox(height: 40),
 
-                  //BUTTON
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
