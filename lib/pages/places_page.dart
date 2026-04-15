@@ -6,6 +6,7 @@ import '../profile/create_post.dart';
 import 'search_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../data/event_data.dart';
+import '../widgets/notification_dialog.dart';
 
 class PlacesPage extends StatefulWidget {
   const PlacesPage({super.key});
@@ -392,10 +393,7 @@ class _PlacesPageState extends State<PlacesPage> {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => const AlertDialog(
-                      title: Text("Notifications"),
-                      content: Text("No notifications yet 🔔"),
-                    ),
+                    builder: (_) => const NotificationDialog(),
                   );
                 },
               ),
