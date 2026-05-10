@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'places_page.dart';
 import '../data/activity_data.dart';
+import '../services/api_service.dart';
 
 class ProfilingPage extends StatefulWidget {
   const ProfilingPage({super.key});
@@ -11,16 +12,33 @@ class ProfilingPage extends StatefulWidget {
 }
 
 class _ProfilingPageState extends State<ProfilingPage> {
-
-  //LIST OF AVAILABLE ACTIVITIES (MATCH THIS WITH EVENT TAGS)
-  final List<String> activitiesList = ActivityData.activities;
-
-  //SELECTED ACTIVITIES
+  List<String> activitiesList = ActivityData.activities;
   List<String> selectedActivities = [];
+  bool isSaving = false;
+  bool isLoadingActivities = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadActivities();
+  }
+
+  Future<void> loadActivities() async {
+    final interests = await ApiService().getInterestTypes();
+
+    if (!mounted) return;
+
+    setState(() {
+      activitiesList = interests.isEmpty ? ActivityData.activities : interests;
+      selectedActivities = selectedActivities
+          .where((activity) => activitiesList.contains(activity))
+          .toList();
+      isLoadingActivities = false;
+    });
+  }
 
   //SUBMIT PROFILE
   void finishProfiling() async {
-
     if (selectedActivities.isEmpty) {
       showDialog(
         context: context,
@@ -32,18 +50,32 @@ class _ProfilingPageState extends State<ProfilingPage> {
       return;
     }
 
+    setState(() => isSaving = true);
+
+    final result = await ApiService().updateInterests(selectedActivities);
+
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() => isSaving = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
 
     // SAVE DATA
     await prefs.setBool("isProfiled", true);
     await prefs.setStringList("activities", selectedActivities);
 
+    if (!mounted) return;
+
     // GO TO PLACES PAGE
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (context) => const PlacesPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const PlacesPage()),
     );
   }
 
@@ -66,14 +98,11 @@ class _ProfilingPageState extends State<ProfilingPage> {
         decoration: BoxDecoration(
           color: isSelected ? Colors.red : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? Colors.red : Colors.grey,
-          ),
+          border: Border.all(color: isSelected ? Colors.red : Colors.grey),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-
             if (isSelected)
               const Icon(Icons.check, color: Colors.white, size: 16),
 
@@ -94,7 +123,6 @@ class _ProfilingPageState extends State<ProfilingPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
 
@@ -107,13 +135,9 @@ class _ProfilingPageState extends State<ProfilingPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-
                   const Text(
                     "Welcome to RaceTech",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 10),
@@ -139,20 +163,28 @@ class _ProfilingPageState extends State<ProfilingPage> {
                   const SizedBox(height: 10),
 
                   //DYNAMIC LIST (EASIER TO SCALE)
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: activitiesList
-                        .map((activity) => buildChoice(activity))
-                        .toList(),
-                  ),
+                  if (isLoadingActivities)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 20),
+                      child: CircularProgressIndicator(),
+                    )
+                  else
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: activitiesList
+                          .map((activity) => buildChoice(activity))
+                          .toList(),
+                    ),
 
                   const SizedBox(height: 40),
 
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: finishProfiling,
+                      onPressed: isSaving || isLoadingActivities
+                          ? null
+                          : finishProfiling,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         padding: const EdgeInsets.symmetric(vertical: 15),
@@ -160,13 +192,15 @@ class _ProfilingPageState extends State<ProfilingPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        "Get Started",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      child: Text(
+                        isSaving ? "Saving..." : "Get Started",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),

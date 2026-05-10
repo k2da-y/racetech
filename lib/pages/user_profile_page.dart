@@ -1,15 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:racetechph/pages/places_page.dart';
 import 'package:racetechph/profile/badges_page.dart';
+import '../services/api_service.dart';
 import 'login_page.dart';
 import '../profile/help_support_page.dart';
 import '../profile/privacy_policy_page.dart';
 import '../profile/training_module_page.dart';
 import '../profile/community_page.dart';
 import '../profile/edit_password.dart';
+import '../profile/my_activity_page.dart';
+import 'profile_settings_page.dart';
 
-class UserProfilePage extends StatelessWidget {
+class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
+
+  @override
+  State<UserProfilePage> createState() => _UserProfilePageState();
+}
+
+class _UserProfilePageState extends State<UserProfilePage> {
+  Map<String, dynamic>? user;
+  bool isLoadingUser = true;
+
+  @override
+  void initState() {
+    super.initState();
+    loadUser();
+  }
+
+  Future<void> loadUser() async {
+    final currentUser = await ApiService().getUser();
+
+    if (!mounted) return;
+
+    setState(() {
+      user = currentUser;
+      isLoadingUser = false;
+    });
+  }
+
+  Future<void> handleLogout(BuildContext context) async {
+    final success = await ApiService().logout();
+
+    if (!context.mounted) return;
+
+    if (success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Logout failed. Please try again.")),
+      );
+    }
+  }
 
   Widget menuItem({
     required String title,
@@ -25,13 +71,8 @@ class UserProfilePage extends StatelessWidget {
           children: [
             Icon(icon, size: 22),
             const SizedBox(width: 15),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios, size: 16)
+            Expanded(child: Text(title, style: const TextStyle(fontSize: 16))),
+            const Icon(Icons.arrow_forward_ios, size: 16),
           ],
         ),
       ),
@@ -40,6 +81,11 @@ class UserProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayName = (user?["name"] ?? "Runner").toString();
+    final displayEmail = (user?["email"] ?? "").toString();
+    final initial = displayName.trim().isEmpty
+        ? "R"
+        : displayName.trim()[0].toUpperCase();
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -48,7 +94,6 @@ class UserProfilePage extends StatelessWidget {
         child: SingleChildScrollView(
           child: Column(
             children: [
-
               // 🔥 MODERN HEADER
               Container(
                 padding: const EdgeInsets.all(20),
@@ -62,12 +107,10 @@ class UserProfilePage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-
                     // TOP BAR
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-
                         GestureDetector(
                           onTap: () {
                             Navigator.push(
@@ -77,7 +120,10 @@ class UserProfilePage extends StatelessWidget {
                               ),
                             );
                           },
-                          child: const Icon(Icons.arrow_back, color: Colors.white),
+                          child: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
                         ),
 
                         const Text(
@@ -91,32 +137,35 @@ class UserProfilePage extends StatelessWidget {
 
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => LoginPage(),
-                              ),
-                            );
+                            handleLogout(context);
                           },
                           child: const Icon(Icons.logout, color: Colors.white),
                         ),
-
                       ],
                     ),
 
                     const SizedBox(height: 25),
 
                     // PROFILE INFO
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 40,
                       backgroundColor: Colors.white,
-                      child: Icon(Icons.person, size: 40, color: Colors.black),
+                      child: isLoadingUser
+                          ? const CircularProgressIndicator()
+                          : Text(
+                              initial,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
 
                     const SizedBox(height: 10),
 
-                    const Text(
-                      "Keith Garcia",
+                    Text(
+                      isLoadingUser ? "Loading..." : displayName,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -126,11 +175,10 @@ class UserProfilePage extends StatelessWidget {
 
                     const SizedBox(height: 5),
 
-                    const Text(
-                      "keithgarcia@gmail.com",
-                      style: TextStyle(color: Colors.white70),
+                    Text(
+                      displayEmail,
+                      style: const TextStyle(color: Colors.white70),
                     ),
-
                   ],
                 ),
               ),
@@ -146,6 +194,35 @@ class UserProfilePage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
+                    menuItem(
+                      title: "Profile Settings",
+                      icon: Icons.manage_accounts_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfileSettingsPage(),
+                          ),
+                        ).then((_) => loadUser());
+                      },
+                    ),
+
+                    const Divider(),
+
+                    menuItem(
+                      title: "My Activity",
+                      icon: Icons.receipt_long_outlined,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MyActivityPage(),
+                          ),
+                        );
+                      },
+                    ),
+
+                    const Divider(),
 
                     menuItem(
                       title: "Badges",
@@ -174,7 +251,6 @@ class UserProfilePage extends StatelessWidget {
                         );
                       },
                     ),
-
                   ],
                 ),
               ),
@@ -191,7 +267,6 @@ class UserProfilePage extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-
                     menuItem(
                       title: "Training Module",
                       icon: Icons.menu_book_outlined,
@@ -249,7 +324,6 @@ class UserProfilePage extends StatelessWidget {
                         );
                       },
                     ),
-
                   ],
                 ),
               ),

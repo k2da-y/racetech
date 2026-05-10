@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 
 class EditPasswordPage extends StatefulWidget {
   const EditPasswordPage({super.key});
@@ -15,37 +16,60 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
   bool obscureCurrent = true;
   bool obscureNew = true;
   bool obscureConfirm = true;
+  bool isSaving = false;
 
-  void _handleEditPasswordPage() {
-    String newPass = newPasswordController.text;
-    String confirmPass = confirmPasswordController.text;
+  Future<void> _handleEditPasswordPage() async {
+    final currentPass = currentPasswordController.text.trim();
+    final newPass = newPasswordController.text.trim();
+    final confirmPass = confirmPasswordController.text.trim();
 
-    if (newPass != confirmPass) {
+    if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Passwords do not match")),
+        const SnackBar(content: Text("Please complete all fields")),
       );
       return;
     }
 
-    //API call here (Laravel)
+    if (newPass != confirmPass) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Passwords do not match")));
+      return;
+    }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Password updated successfully")),
+    setState(() => isSaving = true);
+
+    final result = await ApiService().changePassword(
+      currentPassword: currentPass,
+      newPassword: newPass,
+      passwordConfirmation: confirmPass,
     );
+
+    if (!mounted) return;
+
+    setState(() => isSaving = false);
+
+    if (!result.success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message)));
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Change Password"),
-      ),
+      appBar: AppBar(title: const Text("Change Password")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-
             TextField(
               controller: currentPasswordController,
               obscureText: obscureCurrent,
@@ -112,8 +136,8 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _handleEditPasswordPage,
-                child: const Text("Save Changes"),
+                onPressed: isSaving ? null : _handleEditPasswordPage,
+                child: Text(isSaving ? "Saving..." : "Save Changes"),
               ),
             ),
           ],

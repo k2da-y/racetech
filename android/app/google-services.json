@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "669775311994",
+    "project_id": "conquer-51741",
+    "storage_bucket": "conquer-51741.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:669775311994:android:c4adbabc8e925ed7a477c3",
+        "android_client_info": {
+          "package_name": "com.example.racetechph"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-5K4QFmIGjYYlyWWBRqXiavJ6E04W9IA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

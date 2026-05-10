@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../data/training_data.dart';
+import '../services/api_service.dart';
 
 class TrainingModulePage extends StatefulWidget {
   const TrainingModulePage({super.key});
@@ -10,47 +10,79 @@ class TrainingModulePage extends StatefulWidget {
 }
 
 class _TrainingModulePageState extends State<TrainingModulePage> {
-
   String selectedActivity = "";
+  bool isLoading = true;
+  List<Map<String, dynamic>> modules = [];
 
-  // ✅ LOAD USER ACTIVITY (FIRST ONE LANG)
-  void loadActivity() async {
+  Future<void> loadTrainingModules() async {
     final prefs = await SharedPreferences.getInstance();
     final activities = prefs.getStringList("activities") ?? [];
+    final loadedModules = await ApiService().getTrainingModules();
+
+    if (!mounted) return;
 
     setState(() {
       selectedActivity = activities.isNotEmpty ? activities.first : "Running";
+      modules = loadedModules;
+      isLoading = false;
     });
   }
 
   @override
   void initState() {
     super.initState();
-    loadActivity();
+    loadTrainingModules();
   }
 
-  // ✅ QUEST CARD (UNCHANGED)
-  Widget questCard(
-      String title,
-      String description,
-      String difficulty,
-      double progress,
-      ) {
-    Color color;
-
+  String displayDifficulty(String difficulty) {
     switch (difficulty) {
-      case "Easy":
-        color = Colors.green;
-        break;
-      case "Medium":
-        color = Colors.orange;
-        break;
-      case "Hard":
-        color = Colors.red;
-        break;
+      case "beginner":
+        return "Beginner";
+      case "intermediate":
+        return "Intermediate";
+      case "advanced":
+        return "Advanced";
       default:
-        color = Colors.grey;
+        return difficulty.isEmpty ? "General" : difficulty;
     }
+  }
+
+  Color difficultyColor(String difficulty) {
+    switch (difficulty) {
+      case "beginner":
+        return Colors.green;
+      case "intermediate":
+        return Colors.orange;
+      case "advanced":
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData typeIcon(String type) {
+    switch (type) {
+      case "warmup":
+        return Icons.directions_run_outlined;
+      case "safety":
+        return Icons.health_and_safety_outlined;
+      case "guideline":
+        return Icons.menu_book_outlined;
+      case "program":
+        return Icons.fitness_center_outlined;
+      default:
+        return Icons.school_outlined;
+    }
+  }
+
+  Widget moduleCard(Map<String, dynamic> module) {
+    final title = (module["title"] ?? "Untitled Module").toString();
+    final description = (module["description"] ?? "").toString();
+    final content = (module["content"] ?? "").toString();
+    final type = (module["type"] ?? "").toString();
+    final difficulty = (module["difficulty_level"] ?? "").toString();
+    final duration = module["duration"];
+    final color = difficultyColor(difficulty);
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -59,29 +91,24 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
-          BoxShadow(
-            blurRadius: 8,
-            color: Colors.black.withOpacity(0.1),
-          )
+          BoxShadow(blurRadius: 8, color: Colors.black.withValues(alpha: 0.1)),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           Row(
             children: [
               Container(
-                width: 10,
                 height: 50,
+                width: 50,
                 decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(10),
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                child: Icon(typeIcon(type), color: color),
               ),
-
               const SizedBox(width: 15),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,27 +121,43 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(description),
+                    Text(
+                      description,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            borderRadius: BorderRadius.circular(10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Chip(
+                label: Text(displayDifficulty(difficulty)),
+                visualDensity: VisualDensity.compact,
+              ),
+              if (duration != null)
+                Chip(
+                  label: Text("$duration min"),
+                  visualDensity: VisualDensity.compact,
+                ),
+              if (type.isNotEmpty)
+                Chip(label: Text(type), visualDensity: VisualDensity.compact),
+            ],
           ),
-
-          const SizedBox(height: 5),
-
-          Text(
-            "${(progress * 100).toInt()}% completed",
-            style: const TextStyle(fontSize: 12),
-          ),
+          if (content.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              content,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.black87),
+            ),
+          ],
         ],
       ),
     );
@@ -122,31 +165,34 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
 
   @override
   Widget build(BuildContext context) {
-
-    final quests = TrainingData.getQuests(selectedActivity);
-
     return Scaffold(
       backgroundColor: Colors.grey[100],
-
-      appBar: AppBar(
-        title: Text("Training: $selectedActivity"),
-      ),
-
-      body: ListView.builder(
-        padding: const EdgeInsets.all(15),
-        itemCount: quests.length,
-        itemBuilder: (context, index) {
-
-          final q = quests[index];
-
-          return questCard(
-            q["title"],
-            q["desc"],
-            q["diff"],
-            0.3, // dummy progress
-          );
-        },
-      ),
+      appBar: AppBar(title: Text("Training: $selectedActivity")),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : modules.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  "No training modules available yet.",
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          : RefreshIndicator(
+              onRefresh: () async {
+                setState(() => isLoading = true);
+                await loadTrainingModules();
+              },
+              child: ListView.builder(
+                padding: const EdgeInsets.all(15),
+                itemCount: modules.length,
+                itemBuilder: (context, index) {
+                  return moduleCard(modules[index]);
+                },
+              ),
+            ),
     );
   }
 }

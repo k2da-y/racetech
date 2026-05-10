@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_page.dart';
+import '../services/api_service.dart';
 
 class SignUpPage2 extends StatefulWidget {
-
   final String firstName;
   final String lastName;
   final String gender;
@@ -21,20 +21,28 @@ class SignUpPage2 extends StatefulWidget {
 }
 
 class _SignUpPage2State extends State<SignUpPage2> {
-
-  final usernameController = TextEditingController();
+  final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
   bool obscurePassword = true;
   bool obscureConfirm = true;
+  bool isLoading = false;
 
-  void createAccount() {
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
 
-    if (usernameController.text.isEmpty ||
-        passwordController.text.isEmpty ||
-        confirmPasswordController.text.isEmpty) {
+  Future<void> createAccount() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
 
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       showDialog(
         context: context,
         builder: (_) => const AlertDialog(
@@ -45,12 +53,43 @@ class _SignUpPage2State extends State<SignUpPage2> {
       return;
     }
 
-    if (passwordController.text != confirmPasswordController.text) {
+    if (password != confirmPassword) {
       showDialog(
         context: context,
         builder: (_) => const AlertDialog(
           title: Text("Error"),
           content: Text("Passwords do not match."),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    final success = await ApiService().register(
+      firstName: widget.firstName,
+      lastName: widget.lastName,
+      gender: widget.gender,
+      birthday: widget.birthday,
+      email: email,
+      password: password,
+      passwordConfirmation: confirmPassword,
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = false;
+    });
+
+    if (!success) {
+      showDialog(
+        context: context,
+        builder: (_) => const AlertDialog(
+          title: Text("Signup Failed"),
+          content: Text("Please check your details and try again."),
         ),
       );
       return;
@@ -68,10 +107,8 @@ class _SignUpPage2State extends State<SignUpPage2> {
               Navigator.pop(context);
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const LoginPage(),
-                ),
-                    (route) => false,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
               );
             },
             child: const Text("Continue"),
@@ -83,7 +120,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Container(
@@ -106,22 +142,18 @@ class _SignUpPage2State extends State<SignUpPage2> {
                 boxShadow: [
                   BoxShadow(
                     blurRadius: 15,
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     offset: const Offset(0, 8),
-                  )
+                  ),
                 ],
               ),
 
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
                   const Text(
                     "Account Details",
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
 
                   const SizedBox(height: 5),
@@ -134,10 +166,11 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   const SizedBox(height: 25),
 
                   TextField(
-                    controller: usernameController,
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      hintText: "Username",
-                      prefixIcon: const Icon(Icons.person_outline),
+                      hintText: "Email",
+                      prefixIcon: const Icon(Icons.email_outlined),
                       filled: true,
                       fillColor: Colors.grey[100],
                       border: OutlineInputBorder(
@@ -209,7 +242,6 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
                   Row(
                     children: [
-
                       Expanded(
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
@@ -236,15 +268,16 @@ class _SignUpPage2State extends State<SignUpPage2> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: createAccount,
-                          child: const Text("Create",
-                            style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                          onPressed: isLoading ? null : createAccount,
+                          child: Text(
+                            isLoading ? "Creating..." : "Create",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                       ),
-                      )
+                      ),
                     ],
                   ),
                 ],
