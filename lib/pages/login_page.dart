@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'auth_gate_page.dart';
+import 'email_verification_page.dart';
 import 'signup_page.dart';
 import 'forgot_password_page.dart';
-import 'profiling_page.dart';
 import '../services/api_service.dart';
 
 class LoginPage extends StatefulWidget {
@@ -16,6 +17,7 @@ class _LoginPageState extends State<LoginPage> {
   final passwordController = TextEditingController();
 
   bool isLoading = false;
+  bool obscurePassword = true;
 
   @override
   void dispose() {
@@ -50,11 +52,23 @@ class _LoginPageState extends State<LoginPage> {
     if (result == LoginResult.success) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const ProfilingPage()),
+        MaterialPageRoute(builder: (context) => const AuthGatePage()),
+      );
+    } else if (result == LoginResult.emailVerificationRequired) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please verify your email first.")),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => EmailVerificationPage(email: email),
+        ),
       );
     } else {
       final message = switch (result) {
         LoginResult.invalidCredentials => "Invalid email or password",
+        LoginResult.emailVerificationRequired =>
+          "Please verify your email first.",
         LoginResult.webOnlyAccount =>
           "This account is for the admin web portal only.",
         LoginResult.networkError =>
@@ -112,7 +126,7 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 5),
 
                     const Text(
-                      "Login to your RaceTech account",
+                      "Login to your Racetech account",
                       style: TextStyle(color: Colors.grey),
                     ),
 
@@ -137,10 +151,22 @@ class _LoginPageState extends State<LoginPage> {
 
                     TextField(
                       controller: passwordController,
-                      obscureText: true,
+                      obscureText: obscurePassword,
                       decoration: InputDecoration(
                         hintText: "Password",
                         prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              obscurePassword = !obscurePassword;
+                            });
+                          },
+                        ),
                         filled: true,
                         fillColor: Colors.grey[100],
                         border: OutlineInputBorder(

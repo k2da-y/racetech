@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
+import 'email_verification_page.dart';
 import '../services/api_service.dart';
 
 class SignUpPage2 extends StatefulWidget {
@@ -64,11 +64,22 @@ class _SignUpPage2State extends State<SignUpPage2> {
       return;
     }
 
+    if (password.length < 8) {
+      showDialog(
+        context: context,
+        builder: (_) => const AlertDialog(
+          title: Text("Password Too Short"),
+          content: Text("Password must be at least 8 characters."),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       isLoading = true;
     });
 
-    final success = await ApiService().register(
+    final result = await ApiService().register(
       firstName: widget.firstName,
       lastName: widget.lastName,
       gender: widget.gender,
@@ -84,37 +95,23 @@ class _SignUpPage2State extends State<SignUpPage2> {
       isLoading = false;
     });
 
-    if (!success) {
+    if (!result.success) {
       showDialog(
         context: context,
-        builder: (_) => const AlertDialog(
-          title: Text("Signup Failed"),
-          content: Text("Please check your details and try again."),
+        builder: (_) => AlertDialog(
+          title: const Text("Signup Failed"),
+          content: Text(result.message),
         ),
       );
       return;
     }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text("Success 🎉"),
-        content: const Text("Account created successfully!"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginPage()),
-                (route) => false,
-              );
-            },
-            child: const Text("Continue"),
-          ),
-        ],
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EmailVerificationPage(email: email),
       ),
+      (route) => false,
     );
   }
 

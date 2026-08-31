@@ -2,6 +2,8 @@ class Comment {
   String id;
   String author;
   String avatarInitial;
+  String? avatarUrl;
+  int badgeCount;
   String text;
   DateTime timestamp;
   int likes;
@@ -11,6 +13,8 @@ class Comment {
     required this.id,
     required this.author,
     required this.avatarInitial,
+    this.avatarUrl,
+    this.badgeCount = 0,
     required this.text,
     required this.timestamp,
     this.likes = 0,
@@ -24,8 +28,10 @@ class Post {
   String content;
   String? media;
   bool mediaIsRemote;
+  bool mediaIsVideo;
   String authorName;
   String? authorAvatarUrl;
+  int authorBadgeCount;
   int? userId;
   int likes;
   bool likedByMe;
@@ -38,8 +44,10 @@ class Post {
     required this.content,
     this.media,
     this.mediaIsRemote = false,
+    this.mediaIsVideo = false,
     this.authorName = "You",
     this.authorAvatarUrl,
+    this.authorBadgeCount = 0,
     this.userId,
     this.likes = 0,
     this.likedByMe = false,

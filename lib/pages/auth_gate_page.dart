@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
-import 'login_page.dart';
+import 'landing_page.dart';
 import 'places_page.dart';
 import 'profiling_page.dart';
 
@@ -24,11 +24,16 @@ class _AuthGatePageState extends State<AuthGatePage> {
     final token = prefs.getString("token");
 
     if (token == null) {
-      openPage(const LoginPage());
+      openPage(const LandingPage());
       return;
     }
 
-    final user = await ApiService().getUser();
+    final apiService = ApiService();
+    final results = await Future.wait([
+      apiService.getUser(),
+      apiService.getAppConfig(),
+    ]);
+    final user = results[0] as Map<String, dynamic>?;
 
     if (!mounted) return;
 
@@ -36,14 +41,13 @@ class _AuthGatePageState extends State<AuthGatePage> {
       await prefs.remove("token");
       await prefs.remove("isProfiled");
       await prefs.remove("activities");
-      openPage(const LoginPage());
+      openPage(const LandingPage());
       return;
     }
 
-    final interests = user["interests"];
-    final apiInterests = interests is List
-        ? interests.map((interest) => interest.toString()).toList()
-        : <String>[];
+    await apiService.registerDeviceToken(token);
+
+    final apiInterests = interestsFromUser(user);
 
     if (apiInterests.isNotEmpty) {
       await prefs.setBool("isProfiled", true);
@@ -55,6 +59,10 @@ class _AuthGatePageState extends State<AuthGatePage> {
         (prefs.getBool("isProfiled") ?? false) && savedActivities.isNotEmpty;
 
     openPage(isProfiled ? const PlacesPage() : const ProfilingPage());
+  }
+
+  List<String> interestsFromUser(Map<String, dynamic> user) {
+    return ApiService().interestNamesFrom(user);
   }
 
   void openPage(Widget page) {

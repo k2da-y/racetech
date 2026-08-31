@@ -17,6 +17,27 @@ class _ProfilingPageState extends State<ProfilingPage> {
   bool isSaving = false;
   bool isLoadingActivities = true;
 
+  List<String> allowedInterestOptions(List<String> apiInterests) {
+    final apiInterestSet = apiInterests.map(normalizeInterest).toSet();
+    final allowedInterests = ActivityData.activities;
+
+    if (apiInterestSet.isEmpty) {
+      return allowedInterests;
+    }
+
+    final matchedInterests = allowedInterests
+        .where(
+          (interest) => apiInterestSet.contains(normalizeInterest(interest)),
+        )
+        .toList();
+
+    return matchedInterests.isEmpty ? allowedInterests : matchedInterests;
+  }
+
+  String normalizeInterest(String interest) {
+    return interest.trim().toLowerCase();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -29,7 +50,7 @@ class _ProfilingPageState extends State<ProfilingPage> {
     if (!mounted) return;
 
     setState(() {
-      activitiesList = interests.isEmpty ? ActivityData.activities : interests;
+      activitiesList = allowedInterestOptions(interests);
       selectedActivities = selectedActivities
           .where((activity) => activitiesList.contains(activity))
           .toList();
@@ -64,11 +85,16 @@ class _ProfilingPageState extends State<ProfilingPage> {
       return;
     }
 
+    final user = await ApiService().getUser();
+    final normalizedInterests = ApiService().interestNamesFrom(user);
+    final savedInterests = normalizedInterests.isEmpty
+        ? selectedActivities
+        : normalizedInterests;
     final prefs = await SharedPreferences.getInstance();
 
     // SAVE DATA
     await prefs.setBool("isProfiled", true);
-    await prefs.setStringList("activities", selectedActivities);
+    await prefs.setStringList("activities", savedInterests);
 
     if (!mounted) return;
 
@@ -136,7 +162,7 @@ class _ProfilingPageState extends State<ProfilingPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text(
-                    "Welcome to RaceTech",
+                    "Welcome to Racetech",
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
 

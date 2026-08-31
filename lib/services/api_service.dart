@@ -9,12 +9,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum LoginResult {
   success,
   invalidCredentials,
+  emailVerificationRequired,
   webOnlyAccount,
   networkError,
   serverError,
 }
 
 enum ForgotPasswordResult { success, invalidEmail, networkError, serverError }
+
+enum VerifyEmailResult { success, invalidCode, networkError, serverError }
+
+enum ResendVerificationCodeResult {
+  success,
+  invalidEmail,
+  networkError,
+  serverError,
+}
 
 enum ResetPasswordResult {
   success,
@@ -56,18 +66,59 @@ class ApiDataResult<T> {
     : this(success: false, data: null, message: message);
 }
 
+class PaginatedApiResult<T> {
+  final List<T> data;
+  final String? nextPageUrl;
+
+  const PaginatedApiResult({required this.data, required this.nextPageUrl});
+
+  const PaginatedApiResult.empty() : this(data: const [], nextPageUrl: null);
+}
+
+class AchievementData {
+  final List<Map<String, dynamic>> achievements;
+  final List<Map<String, dynamic>> issuedBadges;
+
+  const AchievementData({
+    required this.achievements,
+    required this.issuedBadges,
+  });
+
+  const AchievementData.empty()
+    : this(achievements: const [], issuedBadges: const []);
+}
+
+class AppConfigData {
+  final List<String> profileInterests;
+  final List<String> eventInterestTypes;
+  final List<String> trainingFocusTypes;
+
+  const AppConfigData({
+    required this.profileInterests,
+    required this.eventInterestTypes,
+    required this.trainingFocusTypes,
+  });
+
+  const AppConfigData.empty()
+    : this(
+        profileInterests: const [],
+        eventInterestTypes: const [],
+        trainingFocusTypes: const [],
+      );
+}
+
 class ApiService {
-  // Real phone connected by USB with:
-  // adb reverse tcp:8000 tcp:8000
-  static const String baseUrl = "http://127.0.0.1:8000/api";
+  static const String _defaultBaseUrl = bool.fromEnvironment("dart.vm.product")
+      ? "https://conquer-web-production.up.railway.app/api"
+      : "http://127.0.0.1:8000/api";
 
-  // Real phone on the same Wi-Fi as this PC.
-  // static const String baseUrl = "http://192.168.1.23:8000/api";
-
-  // Android emulator talking to a Laravel server running on this PC:
-  // static const String baseUrl = "http://10.0.2.2:8000/api";
+  static const String baseUrl = String.fromEnvironment(
+    "API_BASE_URL",
+    defaultValue: _defaultBaseUrl,
+  );
 
   static StreamSubscription<String>? _tokenRefreshSubscription;
+  static AppConfigData? _cachedConfig;
 
   String messageFromResponse(http.Response response, String fallback) {
     try {
@@ -130,6 +181,15 @@ class ApiService {
       }
 
       if (response.statusCode == 403) {
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map && data["email_verification_required"] == true) {
+            return LoginResult.emailVerificationRequired;
+          }
+        } catch (_) {
+          // Fall through to the older web-only account behavior.
+        }
+
         return LoginResult.webOnlyAccount;
       }
 
@@ -140,7 +200,7 @@ class ApiService {
     }
   }
 
-  Future<bool> register({
+  Future<ApiActionResult> register({
     required String firstName,
     required String lastName,
     required String gender,
@@ -168,22 +228,94 @@ class ApiService {
       log(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
+        final body = response.body.trim();
+        final data = body.isEmpty ? null : jsonDecode(body);
 
-        if (data["token"] != null) {
+        if (data is Map && data["token"] != null) {
           final prefs = await SharedPreferences.getInstance();
           final apiToken = data["token"].toString();
           await prefs.setString("token", apiToken);
           await registerDeviceToken(apiToken);
         }
 
-        return true;
+        return ApiActionResult.success(
+          messageFromResponse(
+            response,
+            "Registration successful. Please verify your email.",
+          ),
+        );
       }
 
-      return false;
+      return ApiActionResult.failure(
+        messageFromResponse(
+          response,
+          "Please check your details and try again.",
+        ),
+      );
     } catch (e) {
       log("Register error: $e");
-      return false;
+      return const ApiActionResult.failure(
+        "Cannot connect to the server. Check your API connection.",
+      );
+    }
+  }
+
+  Future<VerifyEmailResult> verifyEmail({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/verify-email"),
+            headers: {"Accept": "application/json"},
+            body: {"email": email, "code": code},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        return VerifyEmailResult.success;
+      }
+
+      if (response.statusCode == 422) {
+        return VerifyEmailResult.invalidCode;
+      }
+
+      return VerifyEmailResult.serverError;
+    } catch (e) {
+      log("Verify email error: $e");
+      return VerifyEmailResult.networkError;
+    }
+  }
+
+  Future<ResendVerificationCodeResult> resendVerificationCode(
+    String email,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/resend-verification-code"),
+            headers: {"Accept": "application/json"},
+            body: {"email": email},
+          )
+          .timeout(const Duration(seconds: 60));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        return ResendVerificationCodeResult.success;
+      }
+
+      if (response.statusCode == 422 || response.statusCode == 404) {
+        return ResendVerificationCodeResult.invalidEmail;
+      }
+
+      return ResendVerificationCodeResult.serverError;
+    } catch (e) {
+      log("Resend verification code error: $e");
+      return ResendVerificationCodeResult.networkError;
     }
   }
 
@@ -355,7 +487,92 @@ class ApiService {
     }
   }
 
-  Future<List<String>> getInterestTypes() async {
+  List<String> interestNamesFrom(dynamic source) {
+    final interests = _interestListFrom(source);
+
+    return interests
+        .map(_interestNameFrom)
+        .where((interest) => interest.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
+  List<dynamic> _interestListFrom(dynamic source) {
+    return _listFromKeys(source, const [
+      "interests",
+      "profile_interests",
+      "profileInterests",
+      "interest_types",
+      "interestTypes",
+      "event_interest_types",
+      "eventInterestTypes",
+      "event_types",
+      "eventTypes",
+      "types",
+    ]);
+  }
+
+  List<dynamic> _listFromKeys(dynamic source, List<String> keys) {
+    if (source is List) {
+      return source;
+    }
+
+    if (source is Map) {
+      for (final key in keys) {
+        final value = source[key];
+        if (value is List) {
+          return value;
+        }
+      }
+
+      final data = source["data"];
+      if (data != source) {
+        return _listFromKeys(data, keys);
+      }
+    }
+
+    return [];
+  }
+
+  String _interestNameFrom(dynamic interest) {
+    if (interest is Map) {
+      const keys = [
+        "name",
+        "title",
+        "label",
+        "interest_type",
+        "interestType",
+        "event_type",
+        "eventType",
+        "type",
+      ];
+
+      for (final key in keys) {
+        final value = interest[key];
+        final name = _interestNameFrom(value);
+        if (name.isNotEmpty) {
+          return name;
+        }
+      }
+
+      return "";
+    }
+
+    return interest?.toString().trim() ?? "";
+  }
+
+  List<String> namesFromKeys(dynamic source, List<String> keys) {
+    return _listFromKeys(
+      source,
+      keys,
+    ).map(_interestNameFrom).where((name) => name.isNotEmpty).toSet().toList();
+  }
+
+  Future<AppConfigData> getAppConfig({bool forceRefresh = false}) async {
+    if (!forceRefresh && _cachedConfig != null) {
+      return _cachedConfig!;
+    }
+
     try {
       final response = await http
           .get(
@@ -368,20 +585,52 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final interests = data["interests"] as List? ?? [];
+        final config = AppConfigData(
+          profileInterests: namesFromKeys(data, const [
+            "profile_interests",
+            "profileInterests",
+            "interests",
+            "interest_types",
+            "interestTypes",
+          ]),
+          eventInterestTypes: namesFromKeys(data, const [
+            "event_interest_types",
+            "eventInterestTypes",
+            "event_types",
+            "eventTypes",
+            "interest_types",
+            "interestTypes",
+          ]),
+          trainingFocusTypes: namesFromKeys(data, const [
+            "training_focus_types",
+            "trainingFocusTypes",
+            "focus_types",
+            "focusTypes",
+            "training_types",
+            "trainingTypes",
+          ]),
+        );
 
-        return interests
-            .map((interest) => interest.toString().trim())
-            .where((interest) => interest.isNotEmpty)
-            .toSet()
-            .toList();
+        _cachedConfig = config;
+        return config;
       }
-
-      return [];
     } catch (e) {
-      log("Get interest types error: $e");
-      return [];
+      log("Get app config error: $e");
     }
+
+    return _cachedConfig ?? const AppConfigData.empty();
+  }
+
+  Future<List<String>> getInterestTypes() async {
+    return (await getAppConfig()).profileInterests;
+  }
+
+  Future<List<String>> getEventInterestTypes() async {
+    return (await getAppConfig()).eventInterestTypes;
+  }
+
+  Future<List<String>> getTrainingFocusTypes() async {
+    return (await getAppConfig()).trainingFocusTypes;
   }
 
   Future<bool> logout() async {
@@ -465,6 +714,7 @@ class ApiService {
     required String emergencyContactName,
     required String emergencyContactNumber,
     required String medicalConditions,
+    String? avatarPath,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
@@ -474,6 +724,17 @@ class ApiService {
     }
 
     try {
+      final fields = {
+        "name": name,
+        "phone": phone,
+        "gender": gender,
+        "birthdate": birthdate,
+        "address": address,
+        "emergency_contact_name": emergencyContactName,
+        "emergency_contact_number": emergencyContactNumber,
+        "medical_conditions": medicalConditions,
+      };
+
       final response = await http
           .patch(
             Uri.parse("$baseUrl/me"),
@@ -481,20 +742,48 @@ class ApiService {
               "Accept": "application/json",
               "Authorization": "Bearer $token",
             },
-            body: {
-              "name": name,
-              "phone": phone,
-              "gender": gender,
-              "birthdate": birthdate,
-              "address": address,
-              "emergency_contact_name": emergencyContactName,
-              "emergency_contact_number": emergencyContactNumber,
-              "medical_conditions": medicalConditions,
-            },
+            body: fields,
           )
           .timeout(const Duration(seconds: 15));
 
       log(response.body);
+
+      if (response.statusCode == 200 && avatarPath != null) {
+        final avatarRequest = http.MultipartRequest(
+          "POST",
+          Uri.parse("$baseUrl/me/avatar"),
+        );
+        avatarRequest.headers.addAll({
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+        });
+        avatarRequest.files.add(
+          await http.MultipartFile.fromPath("avatar", avatarPath),
+        );
+
+        final streamedResponse = await avatarRequest.send().timeout(
+          const Duration(seconds: 30),
+        );
+        final avatarResponse = await http.Response.fromStream(streamedResponse);
+
+        log(avatarResponse.body);
+
+        if (avatarResponse.statusCode == 200) {
+          return ApiActionResult.success(
+            messageFromResponse(
+              avatarResponse,
+              "Profile updated successfully.",
+            ),
+          );
+        }
+
+        return ApiActionResult.failure(
+          messageFromResponse(
+            avatarResponse,
+            "Profile details were saved, but the profile picture could not be uploaded.",
+          ),
+        );
+      }
 
       if (response.statusCode == 200) {
         return ApiActionResult.success(
@@ -571,14 +860,21 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getEvents() async {
+  Future<List<Map<String, dynamic>>> getEvents({
+    bool recommended = true,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
 
     try {
+      final uri = Uri.parse("$baseUrl/events").replace(
+        queryParameters: recommended && token != null
+            ? {"recommended": "1"}
+            : null,
+      );
       final response = await http
           .get(
-            Uri.parse("$baseUrl/events"),
+            uri,
             headers: {
               "Accept": "application/json",
               if (token != null) "Authorization": "Bearer $token",
@@ -601,6 +897,65 @@ class ApiService {
       return [];
     } catch (e) {
       log("Get events error: $e");
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getEvent(String eventId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/events/$eventId"),
+            headers: {
+              "Accept": "application/json",
+              if (token != null) "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final event = data["data"];
+
+        return event is Map ? Map<String, dynamic>.from(event) : null;
+      }
+
+      return null;
+    } catch (e) {
+      log("Get event error: $e");
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAnnouncements() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/announcements"),
+            headers: {"Accept": "application/json"},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final announcements = data["data"] as List? ?? [];
+
+        return announcements
+            .whereType<Map>()
+            .map((announcement) => Map<String, dynamic>.from(announcement))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      log("Get announcements error: $e");
       return [];
     }
   }
@@ -719,12 +1074,34 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getTrainingModules() async {
+  Future<List<Map<String, dynamic>>> getTrainingModules({
+    bool recommended = true,
+  }) async {
+    return (await getTrainingModulesPage(recommended: recommended)).data;
+  }
+
+  Future<PaginatedApiResult<Map<String, dynamic>>> getTrainingModulesPage({
+    bool recommended = true,
+    String? pageUrl,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
     try {
+      final uri = pageUrl == null
+          ? Uri.parse("$baseUrl/training-modules").replace(
+              queryParameters: recommended && token != null
+                  ? {"recommended": "1"}
+                  : null,
+            )
+          : Uri.parse(pageUrl);
       final response = await http
           .get(
-            Uri.parse("$baseUrl/training-modules"),
-            headers: {"Accept": "application/json"},
+            uri,
+            headers: {
+              "Accept": "application/json",
+              if (token != null) "Authorization": "Bearer $token",
+            },
           )
           .timeout(const Duration(seconds: 15));
 
@@ -733,17 +1110,24 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final modules = data["data"] as List? ?? [];
+        final links = data["links"];
+        final nextPageUrl = links is Map ? links["next"]?.toString() : null;
 
-        return modules
-            .whereType<Map>()
-            .map((module) => Map<String, dynamic>.from(module))
-            .toList();
+        return PaginatedApiResult(
+          data: modules
+              .whereType<Map>()
+              .map((module) => Map<String, dynamic>.from(module))
+              .toList(),
+          nextPageUrl: nextPageUrl != null && nextPageUrl.trim().isNotEmpty
+              ? nextPageUrl
+              : null,
+        );
       }
 
-      return [];
+      return const PaginatedApiResult.empty();
     } catch (e) {
       log("Get training modules error: $e");
-      return [];
+      return const PaginatedApiResult.empty();
     }
   }
 
@@ -812,7 +1196,7 @@ class ApiService {
 
       if (mediaPath != null) {
         final extension = mediaPath.split(".").last.toLowerCase();
-        final fieldName = ["mp4", "mov", "webm"].contains(extension)
+        final fieldName = ["mp4", "mov", "webm", "m4v"].contains(extension)
             ? "video"
             : "image";
         request.files.add(
@@ -879,6 +1263,333 @@ class ApiService {
     } catch (e) {
       log("Delete community post error: $e");
       return false;
+    }
+  }
+
+  Future<ApiDataResult<List<Map<String, dynamic>>>>
+  getArchivedCommunityPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/community-posts/archived"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        dynamic rawPosts = decoded;
+        if (decoded is Map) rawPosts = decoded["data"];
+        if (rawPosts is Map) rawPosts = rawPosts["data"];
+        final posts = rawPosts is List ? rawPosts : const [];
+
+        return ApiDataResult.success(
+          posts
+              .whereType<Map>()
+              .map((post) => Map<String, dynamic>.from(post))
+              .toList(),
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to load recently deleted posts."),
+      );
+    } catch (e) {
+      log("Get archived community posts error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiActionResult> restoreArchivedCommunityPost(String postId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiActionResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/community-posts/$postId/restore"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return ApiActionResult.success(
+          messageFromResponse(response, "Post restored successfully."),
+        );
+      }
+
+      return ApiActionResult.failure(
+        messageFromResponse(response, "Unable to restore this post."),
+      );
+    } catch (e) {
+      log("Restore archived community post error: $e");
+      return const ApiActionResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getHiddenCommunityPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return [];
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/community-posts/hidden"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final posts = data["data"] as List? ?? [];
+
+        return posts
+            .whereType<Map>()
+            .map((post) => Map<String, dynamic>.from(post))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      log("Get hidden community posts error: $e");
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getReportedCommunityPosts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return [];
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/community-posts/reported"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final posts = data["data"] as List? ?? [];
+
+        return posts
+            .whereType<Map>()
+            .map((post) => Map<String, dynamic>.from(post))
+            .toList();
+      }
+
+      return [];
+    } catch (e) {
+      log("Get reported community posts error: $e");
+      return [];
+    }
+  }
+
+  Future<ApiActionResult> hideCommunityPost(String postId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiActionResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/community-posts/$postId/hide"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        return ApiActionResult.success(
+          messageFromResponse(response, "Post hidden from your feed."),
+        );
+      }
+
+      return ApiActionResult.failure(
+        messageFromResponse(response, "Unable to hide post."),
+      );
+    } catch (e) {
+      log("Hide community post error: $e");
+      return const ApiActionResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiActionResult> unhideCommunityPost(String postId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiActionResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .delete(
+            Uri.parse("$baseUrl/community-posts/$postId/hide"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        return ApiActionResult.success(
+          messageFromResponse(response, "Post restored to your feed."),
+        );
+      }
+
+      return ApiActionResult.failure(
+        messageFromResponse(response, "Unable to restore post."),
+      );
+    } catch (e) {
+      log("Unhide community post error: $e");
+      return const ApiActionResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiDataResult<Map<String, dynamic>>> updateCommunityPost({
+    required String postId,
+    required String title,
+    required String content,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .patch(
+            Uri.parse("$baseUrl/community-posts/$postId"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode({"title": title, "content": content}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return ApiDataResult.success(
+          Map<String, dynamic>.from(data["data"] ?? {}),
+          messageFromResponse(response, "Post updated successfully."),
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to update post."),
+      );
+    } catch (e) {
+      log("Update community post error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiActionResult> reportCommunityPost({
+    required String postId,
+    required String reason,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiActionResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl/community-posts/$postId/report"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode({"reason": reason}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        return ApiActionResult.success(
+          messageFromResponse(response, "Post reported for review."),
+        );
+      }
+
+      return ApiActionResult.failure(
+        messageFromResponse(response, "Unable to report post."),
+      );
+    } catch (e) {
+      log("Report community post error: $e");
+      return const ApiActionResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
     }
   }
 
@@ -951,12 +1662,12 @@ class ApiService {
     }
   }
 
-  Future<List<Map<String, dynamic>>> getAchievements() async {
+  Future<AchievementData> getAchievementData() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
 
     if (token == null) {
-      return [];
+      return const AchievementData.empty();
     }
 
     try {
@@ -974,19 +1685,76 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final achievements = data["data"] as List? ?? [];
+        final Map<dynamic, dynamic> payload = data is Map
+            ? data
+            : <String, dynamic>{};
+        final nestedData = payload["data"];
+        final Map<dynamic, dynamic>? nestedPayload = nestedData is Map
+            ? nestedData
+            : null;
 
-        return achievements
-            .whereType<Map>()
-            .map((achievement) => Map<String, dynamic>.from(achievement))
-            .toList();
+        List<dynamic> listFromKeys(
+          Map<dynamic, dynamic>? source,
+          List<String> keys,
+        ) {
+          if (source == null) return const [];
+
+          for (final key in keys) {
+            final value = source[key];
+            if (value is List) return value;
+          }
+
+          return const [];
+        }
+
+        const achievementKeys = [
+          "achievements",
+          "badges",
+          "e_badges",
+          "available_badges",
+          "all_badges",
+        ];
+        const issuedBadgeKeys = [
+          "issued_badges",
+          "issuedBadges",
+          "earned_badges",
+          "unlocked_badges",
+        ];
+        var achievements = listFromKeys(payload, achievementKeys);
+        if (achievements.isEmpty) {
+          achievements = listFromKeys(nestedPayload, achievementKeys);
+        }
+        if (achievements.isEmpty && nestedData is List) {
+          achievements = nestedData;
+        }
+
+        var issuedBadges = listFromKeys(payload, issuedBadgeKeys);
+        if (issuedBadges.isEmpty) {
+          issuedBadges = listFromKeys(nestedPayload, issuedBadgeKeys);
+        }
+
+        return AchievementData(
+          achievements: achievements
+              .whereType<Map>()
+              .map((achievement) => Map<String, dynamic>.from(achievement))
+              .toList(),
+          issuedBadges: issuedBadges
+              .whereType<Map>()
+              .map((badge) => Map<String, dynamic>.from(badge))
+              .toList(),
+        );
       }
 
-      return [];
+      return const AchievementData.empty();
     } catch (e) {
       log("Get achievements error: $e");
-      return [];
+      return const AchievementData.empty();
     }
+  }
+
+  Future<List<Map<String, dynamic>>> getAchievements() async {
+    final data = await getAchievementData();
+    return data.achievements;
   }
 
   Future<List<Map<String, dynamic>>> getLeaderboard() async {
@@ -1052,10 +1820,27 @@ class ApiService {
         final data = jsonDecode(response.body);
         final registrations = data["data"] as List? ?? [];
 
-        return registrations
-            .whereType<Map>()
-            .map((registration) => Map<String, dynamic>.from(registration))
-            .toList();
+        final flattened = <Map<String, dynamic>>[];
+        for (final item in registrations.whereType<Map>()) {
+          final parent = Map<String, dynamic>.from(item);
+          final nested = parent["registrations"];
+          if (nested is! List) {
+            flattened.add(parent);
+            continue;
+          }
+
+          final parentEvent =
+              parent["event"] is Map
+                    ? Map<String, dynamic>.from(parent["event"] as Map)
+                    : Map<String, dynamic>.from(parent)
+                ..remove("registrations");
+          for (final registration in nested.whereType<Map>()) {
+            final normalized = Map<String, dynamic>.from(registration);
+            normalized.putIfAbsent("event", () => parentEvent);
+            flattened.add(normalized);
+          }
+        }
+        return flattened;
       }
 
       return [];
@@ -1100,6 +1885,106 @@ class ApiService {
     } catch (e) {
       log("Get results error: $e");
       return [];
+    }
+  }
+
+  Future<ApiDataResult<Map<String, dynamic>>> getRegistrationFeedback(
+    String registrationId,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/registrations/$registrationId/feedback"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded is Map ? decoded["data"] : null;
+        return ApiDataResult.success(
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
+          messageFromResponse(response, "Feedback loaded."),
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to load feedback."),
+      );
+    } catch (e) {
+      log("Get registration feedback error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiDataResult<Map<String, dynamic>>> submitRegistrationFeedback({
+    required String registrationId,
+    required int overallRating,
+    int? organizationRating,
+    int? routeRating,
+    int? safetyRating,
+    int? experienceRating,
+    String? comment,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    final payload = <String, dynamic>{
+      "overall_rating": overallRating,
+      "organization_rating": ?organizationRating,
+      "route_rating": ?routeRating,
+      "safety_rating": ?safetyRating,
+      "experience_rating": ?experienceRating,
+      if (comment != null && comment.trim().isNotEmpty)
+        "comment": comment.trim(),
+    };
+
+    try {
+      final response = await http
+          .put(
+            Uri.parse("$baseUrl/registrations/$registrationId/feedback"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
+      log(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded is Map ? decoded["data"] : null;
+        return ApiDataResult.success(
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
+          messageFromResponse(response, "Feedback saved successfully."),
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to save feedback."),
+      );
+    } catch (e) {
+      log("Submit registration feedback error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
     }
   }
 
@@ -1154,6 +2039,221 @@ class ApiService {
     } catch (e) {
       log("Register event error: $e");
       return const ApiActionResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiDataResult<Map<String, dynamic>>> registerForEventWithData({
+    required int eventId,
+    required int categoryId,
+    required String shirtSize,
+    required String medicalConditions,
+    required bool firstAidKitConfirmed,
+    required bool waiverAccepted,
+    String? waiverName,
+    String? medicalCertificatePath,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$baseUrl/events/$eventId/register/$categoryId"),
+      );
+
+      request.headers.addAll({
+        "Accept": "application/json",
+        "Authorization": "Bearer $token",
+      });
+      request.fields["shirt_size"] = shirtSize;
+      request.fields["medical_conditions"] = medicalConditions;
+      request.fields["first_aid_kit_confirmed"] = firstAidKitConfirmed
+          ? "1"
+          : "0";
+      request.fields["waiver_accepted"] = waiverAccepted ? "1" : "0";
+      if (waiverName != null && waiverName.trim().isNotEmpty) {
+        request.fields["waiver_name"] = waiverName.trim();
+      }
+      if (medicalCertificatePath != null &&
+          medicalCertificatePath.trim().isNotEmpty) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            "medical_certificate",
+            medicalCertificatePath,
+          ),
+        );
+      }
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final response = await http.Response.fromStream(streamed);
+
+      log(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded is Map ? decoded["data"] : null;
+
+        return ApiDataResult.success(
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
+          messageFromResponse(response, "Successfully registered."),
+        );
+      }
+
+      if (response.statusCode == 401) {
+        await prefs.remove("token");
+        await prefs.remove("isProfiled");
+        await prefs.remove("activities");
+        return const ApiDataResult.failure(
+          "Your session expired. Please log in again.",
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to register for this event."),
+      );
+    } catch (e) {
+      log("Register event error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiDataResult<Map<String, dynamic>>> submitPaymentProof({
+    required int registrationId,
+    required String provider,
+    required String providerReference,
+    required String notes,
+    String? proofImagePath,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final request = http.MultipartRequest(
+        "POST",
+        Uri.parse("$baseUrl/registrations/$registrationId/payment-proof"),
+      );
+
+      request.headers.addAll({
+        "Accept": "application/json",
+        "Authorization": "Bearer $token",
+      });
+      request.fields["provider"] = provider;
+      if (providerReference.trim().isNotEmpty) {
+        request.fields["provider_reference"] = providerReference.trim();
+      }
+      if (notes.trim().isNotEmpty) {
+        request.fields["notes"] = notes.trim();
+      }
+      if (proofImagePath != null && proofImagePath.trim().isNotEmpty) {
+        request.files.add(
+          await http.MultipartFile.fromPath("proof_image", proofImagePath),
+        );
+      }
+
+      final streamed = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final response = await http.Response.fromStream(streamed);
+
+      log(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+        final data = decoded is Map ? decoded["data"] : null;
+
+        return ApiDataResult.success(
+          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
+          messageFromResponse(response, "Payment proof submitted."),
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to submit payment proof."),
+      );
+    } catch (e) {
+      log("Submit payment proof error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
+  Future<ApiDataResult<Map<String, dynamic>>> createPayMongoCheckout({
+    required int registrationId,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(
+              "$baseUrl/registrations/$registrationId/paymongo-checkout",
+            ),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 20));
+
+      log(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map) {
+          final data = decoded["data"];
+          final checkoutUrl = decoded["checkout_url"]?.toString();
+
+          return ApiDataResult.success(
+            {
+              "checkout_url": checkoutUrl,
+              "registration": data is Map
+                  ? Map<String, dynamic>.from(data)
+                  : <String, dynamic>{},
+            },
+            messageFromResponse(response, "PayMongo checkout session created."),
+          );
+        }
+
+        return const ApiDataResult.failure(
+          "Online checkout response was incomplete.",
+        );
+      }
+
+      if (response.statusCode == 401) {
+        await prefs.remove("token");
+        await prefs.remove("isProfiled");
+        await prefs.remove("activities");
+        return const ApiDataResult.failure(
+          "Your session expired. Please log in again.",
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to create online checkout."),
+      );
+    } catch (e) {
+      log("Create PayMongo checkout error: $e");
+      return const ApiDataResult.failure(
         "Cannot connect to the server. Please try again.",
       );
     }

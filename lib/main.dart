@@ -2,23 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'pages/auth_gate_page.dart';
+import 'services/app_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  runApp(const RaceTechApp());
+  runApp(const RacetechApp());
+  await AppNotificationService.initialize();
 }
 
-class RaceTechApp extends StatelessWidget {
-  const RaceTechApp({super.key});
+class RacetechApp extends StatelessWidget {
+  const RacetechApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      navigatorKey: AppNotificationService.navigatorKey,
+      scaffoldMessengerKey: AppNotificationService.scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
-      home: AuthGatePage(),
+      home: const AuthGatePage(),
     );
   }
 }
