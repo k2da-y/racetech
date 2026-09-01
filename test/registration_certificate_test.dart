@@ -24,13 +24,15 @@ void main() {
   });
 
   test('normalizes waiting and revoked statuses', () {
+    expect(certificateStatus({'status': 'valid'}), 'available');
+    expect(certificateStatusLabel({'status': 'valid'}), 'Available');
     expect(
       certificateStatusLabel({'status': 'pending_result'}),
       'Waiting for result',
     );
     expect(
       certificateStatusLabel({'status': 'waiting_feedback'}),
-      'Waiting for feedback',
+      'Waiting for issuance',
     );
     expect(certificateStatusLabel({'status': 'invalidated'}), 'Revoked');
   });

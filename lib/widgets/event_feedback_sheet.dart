@@ -39,14 +39,16 @@ class _EventFeedbackSheetState extends State<EventFeedbackSheet> {
   int? experienceRating;
   bool isLoading = true;
   bool isSubmitting = false;
+  late bool canSubmitFeedback;
   String errorMessage = '';
 
   bool get canEdit =>
-      feedbackCanEdit(feedback, canSubmitFeedback: widget.canSubmitFeedback);
+      feedbackCanEdit(feedback, canSubmitFeedback: canSubmitFeedback);
 
   @override
   void initState() {
     super.initState();
+    canSubmitFeedback = widget.canSubmitFeedback;
     _applyFeedback(widget.initialFeedback);
     _loadFeedback();
   }
@@ -73,17 +75,11 @@ class _EventFeedbackSheetState extends State<EventFeedbackSheet> {
     if (!mounted) return;
 
     if (result.success && result.data != null && result.data!.isNotEmpty) {
-      final nested = result.data!['feedback'];
-      final loaded = nested is Map
-          ? <String, dynamic>{
-              ...Map<String, dynamic>.from(nested),
-              if (result.data!.containsKey('can_edit'))
-                'can_edit': result.data!['can_edit'],
-              if (result.data!.containsKey('editable_until'))
-                'editable_until': result.data!['editable_until'],
-            }
-          : result.data!;
-      _applyFeedback(loaded);
+      canSubmitFeedback =
+          feedbackCanSubmitFromValue(result.data!['feedback']) ??
+          feedbackCanSubmitFromValue(result.data!) ??
+          canSubmitFeedback;
+      _applyFeedback(submittedFeedbackFromValue(result.data));
     } else if (!result.success && feedback == null) {
       errorMessage = result.message;
     }

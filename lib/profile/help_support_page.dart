@@ -29,7 +29,7 @@ class HelpSupportPage extends StatelessWidget {
                         _FaqItem(
                           question: "What is Racetech?",
                           answer:
-                              "Racetech is a mobile-based platform for running and recreational event management. It helps users discover events, register for activities, view training modules, track badges, check leaderboards, and interact with the community.",
+                              "Racetech is a mobile-based platform for running and recreational event management. It helps users discover events, register for activities, view training modules, track E-Certificates, check leaderboards, and interact with the community.",
                         ),
                         _FaqItem(
                           question: "Who can use the app?",
@@ -77,7 +77,7 @@ class HelpSupportPage extends StatelessWidget {
                     SizedBox(height: 15),
 
                     _SupportSection(
-                      title: "Training, Badges, and Leaderboard",
+                      title: "Training, E-Certificates, and Leaderboard",
                       icon: Icons.emoji_events_outlined,
                       children: [
                         _FaqItem(
@@ -86,14 +86,14 @@ class HelpSupportPage extends StatelessWidget {
                               "Training modules are guides, programs, warmups, safety reminders, or activity-based content that can help you prepare for your selected recreational activity.",
                         ),
                         _FaqItem(
-                          question: "How do I unlock badges?",
+                          question: "How do I unlock E-Certificates?",
                           answer:
-                              "Badges are unlocked based on your app activity, such as joining events, participating consistently, engaging with the community, or achieving event-related milestones.",
+                              "E-Certificates are issued after you complete an eligible event and your official result is published.",
                         ),
                         _FaqItem(
                           question: "How is the leaderboard ranked?",
                           answer:
-                              "The leaderboard is based on the number of badges unlocked by users. Users with more unlocked badges may appear higher in the ranking.",
+                              "The leaderboard is based on the number of E-Certificates earned by users. Users with more E-Certificates may appear higher in the ranking.",
                         ),
                       ],
                     ),
@@ -313,7 +313,7 @@ class _IntroCard extends StatelessWidget {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              "Need help using Racetech? Browse the FAQs below for quick answers about events, registration, training modules, badges, notifications, account settings, and privacy.",
+              "Need help using Racetech? Browse the FAQs below for quick answers about events, registration, training modules, E-Certificates, notifications, account settings, and privacy.",
               style: TextStyle(
                 color: Color(0xFF475569),
                 fontWeight: FontWeight.w600,

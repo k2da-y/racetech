@@ -4,6 +4,32 @@ import 'package:racetechph/services/api_service.dart';
 import 'package:racetechph/widgets/event_feedback_sheet.dart';
 
 void main() {
+  testWidgets('enables a new form from nested can_submit eligibility', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        EventFeedbackSheet(
+          initialFeedback: null,
+          canSubmitFeedback: false,
+          onLoad: () async => const ApiDataResult.success({
+            'feedback': {'can_submit': true, 'required': true},
+          }),
+          onSubmit: (values) async => const ApiDataResult.success({}),
+          onSaved: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rate This Event'), findsOneWidget);
+    expect(find.byKey(const Key('feedback-submit')), findsOneWidget);
+    final comment = tester.widget<TextField>(
+      find.byKey(const Key('feedback-comment')),
+    );
+    expect(comment.enabled, isTrue);
+  });
+
   testWidgets('requires overall rating and submits optional values', (
     tester,
   ) async {

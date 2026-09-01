@@ -7,13 +7,25 @@ class RankTier {
 }
 
 const List<RankTier> rankTiers = [
-  RankTier(title: "Rookie Racetech", requirement: "1 E-Badge", badges: 1),
-  RankTier(title: "Rising Warrior", requirement: "3 E-Badges", badges: 3),
-  RankTier(title: "Trailblazer", requirement: "5 E-Badges", badges: 5),
-  RankTier(title: "Elite Challenger", requirement: "8 E-Badges", badges: 8),
-  RankTier(title: "Legendary Victor", requirement: "12 E-Badges", badges: 12),
-  RankTier(title: "Mythic Champion", requirement: "15 E-Badges", badges: 15),
-  RankTier(title: "Ultimate Racetech", requirement: "All E-Badges"),
+  RankTier(title: "Rookie Racetech", requirement: "1 E-Certificate", badges: 1),
+  RankTier(title: "Rising Warrior", requirement: "3 E-Certificates", badges: 3),
+  RankTier(title: "Trailblazer", requirement: "5 E-Certificates", badges: 5),
+  RankTier(
+    title: "Elite Challenger",
+    requirement: "8 E-Certificates",
+    badges: 8,
+  ),
+  RankTier(
+    title: "Legendary Victor",
+    requirement: "12 E-Certificates",
+    badges: 12,
+  ),
+  RankTier(
+    title: "Mythic Champion",
+    requirement: "15 E-Certificates",
+    badges: 15,
+  ),
+  RankTier(title: "Ultimate Racetech", requirement: "All E-Certificates"),
 ];
 
 String rankTitleForBadges(int badges) {
@@ -24,5 +36,5 @@ String rankTitleForBadges(int badges) {
     }
   }
 
-  return "Badge Seeker";
+  return "Certificate Seeker";
 }

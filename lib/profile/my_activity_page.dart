@@ -21,7 +21,8 @@ class MyActivityPage extends StatefulWidget {
   State<MyActivityPage> createState() => _MyActivityPageState();
 }
 
-class _MyActivityPageState extends State<MyActivityPage> {
+class _MyActivityPageState extends State<MyActivityPage>
+    with WidgetsBindingObserver {
   bool isLoading = true;
   List<Map<String, dynamic>> registrations = [];
   List<Map<String, dynamic>> results = [];
@@ -29,7 +30,21 @@ class _MyActivityPageState extends State<MyActivityPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadActivity();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !isLoading) {
+      loadActivity();
+    }
   }
 
   Future<void> loadActivity() async {

@@ -29,7 +29,11 @@ String certificateStatus(Map<String, dynamic> certificate) {
     'waiting_feedback' ||
     'pending_feedback' ||
     'feedback_pending' => 'waiting_for_feedback',
-    'ready' || 'issued' || 'generated' || 'downloadable' => 'available',
+    'valid' ||
+    'ready' ||
+    'issued' ||
+    'generated' ||
+    'downloadable' => 'available',
     'invalidated' || 'cancelled' || 'canceled' => 'revoked',
     _ => raw,
   };
@@ -38,7 +42,7 @@ String certificateStatus(Map<String, dynamic> certificate) {
 String certificateStatusLabel(Map<String, dynamic> certificate) {
   return switch (certificateStatus(certificate)) {
     'waiting_for_result' => 'Waiting for result',
-    'waiting_for_feedback' => 'Waiting for feedback',
+    'waiting_for_feedback' => 'Waiting for issuance',
     'available' => 'Available',
     'revoked' => 'Revoked',
     _ => 'Pending',
@@ -54,7 +58,7 @@ String certificateMessage(Map<String, dynamic> certificate) {
     'waiting_for_result' =>
       'Your official result must be published before your certificate is available.',
     'waiting_for_feedback' =>
-      'Submit your event feedback to unlock your certificate.',
+      'Your certificate is being prepared after your official result.',
     'available' => 'Your official E-Certificate is ready.',
     'revoked' => 'This certificate has been revoked by the organizer.',
     _ => 'Your E-Certificate is being prepared.',

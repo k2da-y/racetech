@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/rank_data.dart';
 import '../services/api_service.dart';
+import '../utils/certificate_count.dart';
 import '../widgets/bottom_nav_bar.dart';
 
 class LeaderboardPage extends StatefulWidget {
@@ -81,11 +82,7 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                           itemCount: leaderboard.length,
                           itemBuilder: (context, index) {
                             final user = leaderboard[index];
-                            final badges =
-                                int.tryParse(
-                                  (user["badges_count"] ?? "").toString(),
-                                ) ??
-                                0;
+                            final badges = certificateCountOrZero(user);
 
                             return _LeaderboardCard(
                               rank:
@@ -146,7 +143,7 @@ class _LeaderboardHeader extends StatelessWidget {
               ),
               SizedBox(height: 3),
               Text(
-                "Top users based on badges unlocked",
+                "Top users based on E-Certificates unlocked",
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontWeight: FontWeight.w600,
@@ -194,7 +191,7 @@ class _LeaderboardSummary extends StatelessWidget {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              "Compare progress with other participants while your badges stay personal on the Badges page.",
+              "Compare progress with other participants while your E-Certificates stay personal on the E-Certificates page.",
               style: TextStyle(
                 color: Color(0xFF475569),
                 fontWeight: FontWeight.w600,
@@ -318,7 +315,7 @@ class _LeaderboardCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "$badges badge${badges == 1 ? "" : "s"} unlocked",
+                  "$badges E-Certificate${badges == 1 ? "" : "s"} unlocked",
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -412,7 +409,7 @@ class _RankGuideSheet extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                "Unlock E-Badges to climb through each Racetech rank.",
+                "Unlock E-Certificates to climb through each Racetech rank.",
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontWeight: FontWeight.w600,

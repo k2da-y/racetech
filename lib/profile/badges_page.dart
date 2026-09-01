@@ -74,7 +74,7 @@ class _BadgesPageState extends State<BadgesPage> {
   }
 
   String badgeTitle(Map<String, dynamic> badge) {
-    return (badge["title"] ?? badge["name"] ?? "E-Badge").toString();
+    return (badge["title"] ?? badge["name"] ?? "E-Certificate").toString();
   }
 
   String badgeDescription(Map<String, dynamic> badge) {
@@ -143,8 +143,8 @@ class _BadgesPageState extends State<BadgesPage> {
 
         Text(
           badges.isEmpty
-              ? "E-Badges Earned"
-              : "E-Badges Earned of ${badges.length}",
+              ? "E-Certificates Earned"
+              : "E-Certificates Earned of ${badges.length}",
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
@@ -155,7 +155,7 @@ class _BadgesPageState extends State<BadgesPage> {
         const SizedBox(height: 30),
 
         _SectionHeader(
-          title: "E-Badge Collection",
+          title: "E-Certificate Collection",
           trailing: "$earnedCount/${badges.length}",
         ),
 
@@ -640,7 +640,8 @@ class _IssuedBadgeDetailsSheet extends StatelessWidget {
         : <String, dynamic>{};
     final imageUrl = (badge["image_url"] ?? "").toString();
     final icon = badge["icon"] is IconData ? badge["icon"] as IconData : null;
-    final title = (badge["title"] ?? badge["name"] ?? "E-Badge").toString();
+    final title = (badge["title"] ?? badge["name"] ?? "E-Certificate")
+        .toString();
     final description =
         (badge["description"] ?? badge["desc"] ?? badge["criteria"] ?? "")
             .toString();
@@ -758,7 +759,7 @@ class _IssuedBadgeDetailsSheet extends StatelessWidget {
                                   ? criteria
                                   : description.isNotEmpty
                                   ? description
-                                  : "Complete the required event achievement to unlock this E-Badge.",
+                                  : "Complete the required event achievement to unlock this E-Certificate.",
                               style: const TextStyle(
                                 color: Color(0xFF475569),
                                 fontSize: 13,
@@ -863,8 +864,8 @@ class _EmptyIssuedBadgesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return const _EmptyBadgeSectionCard(
       icon: Icons.workspace_premium_outlined,
-      title: "No E-Badges available yet",
-      message: "Admin-uploaded E-Badges will appear here once available.",
+      title: "No E-Certificates available yet",
+      message: "Admin-issued E-Certificates will appear here once available.",
     );
   }
 }
@@ -954,7 +955,7 @@ class _BadgesHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "E-Badges",
+                "E-Certificates",
                 style: TextStyle(
                   color: Color(0xFF111827),
                   fontSize: 24,
@@ -963,7 +964,7 @@ class _BadgesHeader extends StatelessWidget {
               ),
               SizedBox(height: 3),
               Text(
-                "Your official event E-Badges",
+                "Your official event E-Certificates",
                 style: TextStyle(
                   color: Color(0xFF64748B),
                   fontWeight: FontWeight.w600,

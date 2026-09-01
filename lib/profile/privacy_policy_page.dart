@@ -53,7 +53,7 @@ class PrivacyPolicyPage extends StatelessWidget {
                       icon: Icons.task_alt_outlined,
                       title: "4. How We Use Your Information",
                       content:
-                          "Your information may be used to create and manage your account, verify your identity, complete event registration, recommend activities and training modules, manage event participation, display your badges and leaderboard ranking, process community features, send event reminders and notifications, provide support, improve app performance, and maintain event safety.",
+                          "Your information may be used to create and manage your account, verify your identity, complete event registration, recommend activities and training modules, manage event participation, display your E-Certificates and leaderboard ranking, process community features, send event reminders and notifications, provide support, improve app performance, and maintain event safety.",
                     ),
 
                     SizedBox(height: 15),

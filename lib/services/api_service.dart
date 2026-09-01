@@ -1757,6 +1757,56 @@ class ApiService {
     return data.achievements;
   }
 
+  Future<ApiDataResult<List<Map<String, dynamic>>>> getCertificates() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+    if (token == null) {
+      return const ApiDataResult.failure("Please log in again.");
+    }
+
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl/certificates"),
+            headers: {
+              "Accept": "application/json",
+              "Authorization": "Bearer $token",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+      log(response.body);
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        dynamic value = decoded is Map
+            ? decoded["data"] ?? decoded["certificates"]
+            : decoded;
+        if (value is Map) {
+          value = value["certificates"] ?? value["data"];
+        }
+        final certificates = value is List
+            ? value
+                  .whereType<Map>()
+                  .map((item) => Map<String, dynamic>.from(item))
+                  .toList()
+            : <Map<String, dynamic>>[];
+        return ApiDataResult.success(
+          certificates,
+          messageFromResponse(response, "Certificates loaded."),
+        );
+      }
+
+      return ApiDataResult.failure(
+        messageFromResponse(response, "Unable to load certificates."),
+      );
+    } catch (e) {
+      log("Get certificates error: $e");
+      return const ApiDataResult.failure(
+        "Cannot connect to the server. Please try again.",
+      );
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getLeaderboard() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");

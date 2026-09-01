@@ -46,7 +46,9 @@ void main() {
     expect(find.byKey(const Key('verify-certificate')), findsNothing);
   });
 
-  testWidgets('shows waiting for feedback status', (tester) async {
+  testWidgets('shows legacy feedback status as waiting for issuance', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(
         RegistrationCertificateCard(
@@ -56,8 +58,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Waiting for feedback'), findsOneWidget);
-    expect(find.textContaining('feedback to unlock'), findsOneWidget);
+    expect(find.text('Waiting for issuance'), findsOneWidget);
+    expect(find.textContaining('official result'), findsOneWidget);
+    expect(find.textContaining('feedback'), findsNothing);
   });
 
   testWidgets('keeps verification available for a revoked certificate', (

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:racetechph/profile/badges_page.dart';
+import 'package:racetechph/profile/certificates_page.dart';
 import '../data/rank_data.dart';
+import '../utils/certificate_count.dart';
+import '../utils/official_certificate.dart';
 import '../services/api_service.dart';
 import 'login_page.dart';
 import '../profile/help_support_page.dart';
@@ -437,13 +439,13 @@ class _UserProfilePageState extends State<UserProfilePage> {
   Future<void> loadUser() async {
     final apiService = ApiService();
     final currentUser = await apiService.getUser();
-    final userBadgeCount = badgeCountFromUser(currentUser);
-    final achievements = userBadgeCount == null
-        ? await apiService.getAchievements()
-        : <Map<String, dynamic>>[];
+    final userBadgeCount = certificateCountFromUser(currentUser);
+    final certificateResult = userBadgeCount == null
+        ? await apiService.getCertificates()
+        : const ApiDataResult<List<Map<String, dynamic>>>.success([]);
     final resolvedBadgeCount =
         userBadgeCount ??
-        achievements.where((item) => item["unlocked"] == true).length;
+        validOfficialCertificateCount(certificateResult.data ?? const []);
 
     if (!mounted) return;
 
@@ -454,24 +456,6 @@ class _UserProfilePageState extends State<UserProfilePage> {
     });
 
     await loadCommunitySummary(currentUser);
-  }
-
-  int? badgeCountFromUser(Map<String, dynamic>? data) {
-    if (data == null) return null;
-
-    for (final key in [
-      "badges_count",
-      "badge_count",
-      "unlocked_badges_count",
-      "achievements_count",
-    ]) {
-      final value = data[key];
-      if (value != null) {
-        return int.tryParse(value.toString());
-      }
-    }
-
-    return null;
   }
 
   Future<void> loadCommunitySummary(Map<String, dynamic>? currentUser) async {
@@ -968,28 +952,30 @@ class _UserProfilePageState extends State<UserProfilePage> {
                     menuItem(
                       title: "My Activity",
                       icon: Icons.receipt_long_outlined,
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => const MyActivityPage(),
                           ),
                         );
+                        if (mounted) await loadUser();
                       },
                     ),
 
                     _sectionDivider(),
 
                     menuItem(
-                      title: "Badges",
+                      title: "E-Certificates",
                       icon: Icons.emoji_events_outlined,
-                      onTap: () {
-                        Navigator.push(
+                      onTap: () async {
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const BadgesPage(),
+                            builder: (context) => const CertificatesPage(),
                           ),
                         );
+                        if (mounted) await loadUser();
                       },
                     ),
 

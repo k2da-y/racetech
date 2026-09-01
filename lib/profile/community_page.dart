@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../data/rank_data.dart';
 import '../services/api_service.dart';
+import '../utils/certificate_count.dart';
 import 'post.dart';
 
 // THEME CONSTANTS
@@ -21,22 +22,6 @@ const _textSecondary = Color(0xFF64748B);
 const _primaryBlue = Color(0xFF2563EB);
 const _primarySoft = Color(0xFFEAF2FF);
 const _likeRed = Color(0xFFFF3B5C);
-
-int _badgeCountFromUser(Map<String, dynamic> user) {
-  for (final key in [
-    "badges_count",
-    "badge_count",
-    "unlocked_badges_count",
-    "achievements_count",
-  ]) {
-    final value = user[key];
-    if (value != null) {
-      return int.tryParse(value.toString()) ?? 0;
-    }
-  }
-
-  return 0;
-}
 
 class CommunityPage extends StatefulWidget {
   final bool showOnlyMyPosts;
@@ -153,7 +138,7 @@ class _CommunityPageState extends State<CommunityPage>
       author: author,
       avatarInitial: author.isNotEmpty ? author[0].toUpperCase() : "R",
       avatarUrl: user["avatar_url"]?.toString(),
-      badgeCount: _badgeCountFromUser(user),
+      badgeCount: certificateCountOrZero(user),
       text: (data["content"] ?? "").toString(),
       timestamp: createdAt ?? DateTime.now(),
     );
@@ -187,7 +172,7 @@ class _CommunityPageState extends State<CommunityPage>
       mediaIsVideo: videoUrl.isNotEmpty,
       authorName: (user["name"] ?? "Runner").toString(),
       authorAvatarUrl: user["avatar_url"]?.toString(),
-      authorBadgeCount: _badgeCountFromUser(user),
+      authorBadgeCount: certificateCountOrZero(user),
       userId: int.tryParse((user["id"] ?? "").toString()),
       likes: int.tryParse((data["likes_count"] ?? 0).toString()) ?? 0,
       likedByMe: data["liked_by_me"] == true,
