@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../utils/registration_group.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
@@ -108,6 +109,55 @@ class AppConfigData {
 }
 
 class ApiService {
+  Future<ApiDataResult<Map<String, dynamic>>> groupRequest(
+    String groupId, {
+    String action = '',
+    String? memberRegistrationId,
+  }) async {
+    final token = (await SharedPreferences.getInstance()).getString('token');
+    if (token == null) {
+      return const ApiDataResult.failure('Please log in again.');
+    }
+    final suffix = switch (action) {
+      'rotate' => '/invitation-code',
+      'lock' => '/lock',
+      'remove' => '/members/${Uri.encodeComponent(memberRegistrationId!)}',
+      'leave' => '/membership',
+      _ => '',
+    };
+    final method = action == 'remove' || action == 'leave'
+        ? 'DELETE'
+        : action.isEmpty
+        ? 'GET'
+        : 'POST';
+    final request = http.Request(
+      method,
+      Uri.parse(
+        '$baseUrl/registration-groups/${Uri.encodeComponent(groupId)}$suffix',
+      ),
+    );
+    request.headers.addAll({
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    });
+    try {
+      final response = await http.Response.fromStream(
+        await request.send().timeout(const Duration(seconds: 15)),
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final decoded = jsonDecode(response.body) as Map;
+        return ApiDataResult.success(Map<String, dynamic>.from(decoded));
+      }
+      return ApiDataResult.failure(
+        messageFromResponse(response, 'Unable to update group.'),
+      );
+    } catch (_) {
+      return const ApiDataResult.failure(
+        'Unable to connect. Please try again.',
+      );
+    }
+  }
+
   static const String _defaultBaseUrl = bool.fromEnvironment("dart.vm.product")
       ? "https://conquer-web-production.up.railway.app/api"
       : "http://127.0.0.1:8000/api";
@@ -2103,6 +2153,9 @@ class ApiService {
     required bool waiverAccepted,
     String? waiverName,
     String? medicalCertificatePath,
+    String? groupAction,
+    String? groupName,
+    String? invitationCode,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
@@ -2122,6 +2175,13 @@ class ApiService {
         "Authorization": "Bearer $token",
       });
       request.fields["shirt_size"] = shirtSize;
+      request.fields.addAll(
+        groupRegistrationFields(
+          action: groupAction,
+          name: groupName,
+          code: invitationCode,
+        ),
+      );
       request.fields["medical_conditions"] = medicalConditions;
       request.fields["first_aid_kit_confirmed"] = firstAidKitConfirmed
           ? "1"
@@ -2145,16 +2205,14 @@ class ApiService {
       );
       final response = await http.Response.fromStream(streamed);
 
-      log(response.body);
-
       if (response.statusCode == 200 || response.statusCode == 201) {
         final decoded = jsonDecode(response.body);
         final data = decoded is Map ? decoded["data"] : null;
-
-        return ApiDataResult.success(
-          data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{},
-          messageFromResponse(response, "Successfully registered."),
-        );
+        return ApiDataResult.success({
+          if (data is Map) ...Map<String, dynamic>.from(data),
+          if (decoded is Map && decoded['invitation_code'] != null)
+            'invitation_code': decoded['invitation_code'],
+        }, messageFromResponse(response, "Successfully registered."));
       }
 
       if (response.statusCode == 401) {

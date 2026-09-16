@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../utils/registration_group.dart';
+import '../widgets/registration_group_page.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
@@ -66,6 +68,28 @@ class _MyActivityPageState extends State<MyActivityPage>
   }
 
   Future<void> openPaymentProofSheet(Map<String, dynamic> registration) async {
+    final group = registrationGroup(registration);
+    if (group != null) {
+      final fresh = await ApiService().groupRequest('${group['id']}');
+      if (!mounted) return;
+      if (!fresh.success || fresh.data?['data'] is! Map) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(fresh.message)));
+        return;
+      }
+      registration = {
+        ...registration,
+        'registration_group': fresh.data!['data'],
+      };
+      if (!groupAllowsPayment(registration)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(groupPaymentReason(registration))),
+        );
+        await loadActivity();
+        return;
+      }
+    }
     final updated = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -233,6 +257,7 @@ class _MyActivityPageState extends State<MyActivityPage>
                                     nestedMap: nestedMap,
                                     formatDate: formatDate,
                                     onSubmitPayment: openPaymentProofSheet,
+                                    onGroupChanged: loadActivity,
                                     onFeedback: openFeedbackSheet,
                                   ),
                                 ),
@@ -436,6 +461,7 @@ class _RegistrationList extends StatelessWidget {
   final Map<String, dynamic> Function(Map<String, dynamic>, String) nestedMap;
   final String Function(String) formatDate;
   final ValueChanged<Map<String, dynamic>> onSubmitPayment;
+  final Future<void> Function() onGroupChanged;
   final ValueChanged<Map<String, dynamic>> onFeedback;
 
   const _RegistrationList({
@@ -443,6 +469,7 @@ class _RegistrationList extends StatelessWidget {
     required this.nestedMap,
     required this.formatDate,
     required this.onSubmitPayment,
+    required this.onGroupChanged,
     required this.onFeedback,
   });
 
@@ -523,6 +550,7 @@ class _RegistrationList extends StatelessWidget {
         final checkpointMapUrl = categoryCheckpointMapUrl(category);
         final showFeedback = shouldShowFeedbackPrompt(registration);
         final canSubmitPayment =
+            groupAllowsPayment(registration) &&
             paymentRequired &&
             status == "pending" &&
             ![
@@ -560,11 +588,31 @@ class _RegistrationList extends StatelessWidget {
                 label: "Method: ${paymentProviderLabel(paymentProvider)}",
               ),
           ],
-          action: canSubmitPayment || showFeedback
+          action:
+              canSubmitPayment ||
+                  showFeedback ||
+                  registrationGroup(registration) != null
               ? Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
+                    if (registrationGroup(registration) != null) ...[
+                      OutlinedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => RegistrationGroupPage(
+                              groupId:
+                                  '${registrationGroup(registration)!['id']}',
+                              onChanged: onGroupChanged,
+                            ),
+                          ),
+                        ),
+                        child: const Text('Group Details'),
+                      ),
+                      if (!groupAllowsPayment(registration))
+                        Text(groupPaymentReason(registration)),
+                    ],
                     if (canSubmitPayment)
                       FilledButton.icon(
                         onPressed: () => onSubmitPayment(registration),
@@ -669,6 +717,10 @@ class _RegistrationList extends StatelessWidget {
                         _RegistrationReadinessPanel(
                           readiness: readiness,
                           status: displayStatus,
+                          paymentAllowed: groupAllowsPayment(registration),
+                          paymentBlockedReason: groupPaymentReason(
+                            registration,
+                          ),
                           onAction: (action) {
                             final normalized = action.trim().toLowerCase();
                             if (normalized == "complete_payment") {
@@ -1272,11 +1324,15 @@ class _ActivityDetailsSheet extends StatelessWidget {
 }
 
 class _RegistrationReadinessPanel extends StatelessWidget {
+  final bool paymentAllowed;
+  final String paymentBlockedReason;
   final Map<String, dynamic> readiness;
   final String status;
   final ValueChanged<String> onAction;
 
   const _RegistrationReadinessPanel({
+    this.paymentAllowed = true,
+    this.paymentBlockedReason = '',
     required this.readiness,
     required this.status,
     required this.onAction,
@@ -1367,7 +1423,9 @@ class _RegistrationReadinessPanel extends StatelessWidget {
                 if (supportsAction) ...[
                   const SizedBox(height: 12),
                   FilledButton.icon(
-                    onPressed: () => onAction(action),
+                    onPressed: action == 'complete_payment' && !paymentAllowed
+                        ? null
+                        : () => onAction(action),
                     icon: Icon(
                       action == "complete_payment"
                           ? Icons.payments_outlined
@@ -1376,6 +1434,8 @@ class _RegistrationReadinessPanel extends StatelessWidget {
                     ),
                     label: Text(nextStep["action_label"] ?? "Continue"),
                   ),
+                  if (action == 'complete_payment' && !paymentAllowed)
+                    Text(paymentBlockedReason),
                 ],
               ],
             ),
@@ -1688,6 +1748,9 @@ class _ActivityPaymentProofSheetState
   }
 
   Future<void> submit() async {
+    if (!await checkGroupPayment(context, widget.registration) || !mounted) {
+      return;
+    }
     final registrationId = int.tryParse(
       (widget.registration["id"] ?? "").toString(),
     );
@@ -1726,6 +1789,9 @@ class _ActivityPaymentProofSheetState
   }
 
   Future<void> startPayMongoCheckout() async {
+    if (!await checkGroupPayment(context, widget.registration) || !mounted) {
+      return;
+    }
     final registrationId = int.tryParse(
       (widget.registration["id"] ?? "").toString(),
     );

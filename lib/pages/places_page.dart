@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../utils/registration_group.dart';
+import '../widgets/registration_group_page.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -810,7 +812,7 @@ class _HeaderSection extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Racetech",
+                "Racetech1",
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w900,
@@ -2100,6 +2102,9 @@ class RegisterDialog extends StatefulWidget {
 }
 
 class _RegisterDialogState extends State<RegisterDialog> {
+  String groupAction = 'create';
+  final groupNameController = TextEditingController();
+  final invitationCodeController = TextEditingController();
   int step = 0;
   String size = "M";
   bool acceptedWaiver = false;
@@ -2225,6 +2230,8 @@ class _RegisterDialogState extends State<RegisterDialog> {
   @override
   void dispose() {
     medicalConditionsController.dispose();
+    groupNameController.dispose();
+    invitationCodeController.dispose();
     paymentReferenceController.dispose();
     paymentNotesController.dispose();
     super.dispose();
@@ -2306,6 +2313,19 @@ class _RegisterDialogState extends State<RegisterDialog> {
   }
 
   Future<void> submitRegistration() async {
+    if (isGroupCategory(selectedCategory) &&
+        (groupAction == 'create'
+                ? groupNameController.text
+                : invitationCodeController.text)
+            .trim()
+            .isEmpty) {
+      showMessage(
+        groupAction == 'create'
+            ? 'Enter a group name.'
+            : 'Enter an invitation code.',
+      );
+      return;
+    }
     final eventId = widget.event["id"];
     final categoryId = selectedCategoryId;
 
@@ -2342,6 +2362,9 @@ class _RegisterDialogState extends State<RegisterDialog> {
       firstAidKitConfirmed: firstAidKitConfirmed,
       waiverAccepted: acceptedWaiver,
       medicalCertificatePath: medicalCertificateFile?.path,
+      groupAction: isGroupCategory(selectedCategory) ? groupAction : null,
+      groupName: groupNameController.text,
+      invitationCode: invitationCodeController.text,
     );
 
     if (!mounted) return;
@@ -2353,6 +2376,29 @@ class _RegisterDialogState extends State<RegisterDialog> {
     }
 
     final registration = result.data ?? <String, dynamic>{};
+    final code = registration.remove('invitation_code')?.toString() ?? '';
+    invitationCodeController.clear();
+    if (code.isNotEmpty) await showInvitationCode(context, code);
+    if (!mounted) return;
+    if (!groupAllowsPayment(registration)) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Group registration created'),
+          content: Text(
+            '${groupPaymentReason(registration)} View and manage your group in My Activity.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) Navigator.pop(context, true);
+      return;
+    }
     final paymentRequired = registration["payment_required"] == true;
 
     if (paymentRequired) {
@@ -2381,6 +2427,13 @@ class _RegisterDialogState extends State<RegisterDialog> {
   }
 
   Future<void> submitPaymentProof() async {
+    if (!await checkGroupPayment(context, createdRegistration) || !mounted) {
+      return;
+    }
+    if (!groupAllowsPayment(createdRegistration)) {
+      showMessage(groupPaymentReason(createdRegistration));
+      return;
+    }
     final registrationId = int.tryParse(
       (createdRegistration?["id"] ?? "").toString(),
     );
@@ -2429,6 +2482,13 @@ class _RegisterDialogState extends State<RegisterDialog> {
   }
 
   Future<void> startPayMongoCheckout() async {
+    if (!await checkGroupPayment(context, createdRegistration) || !mounted) {
+      return;
+    }
+    if (!groupAllowsPayment(createdRegistration)) {
+      showMessage(groupPaymentReason(createdRegistration));
+      return;
+    }
     final registrationId = int.tryParse(
       (createdRegistration?["id"] ?? "").toString(),
     );
@@ -2567,11 +2627,39 @@ class _RegisterDialogState extends State<RegisterDialog> {
                     onChanged: (value) {
                       setState(() {
                         selectedCategoryId = value;
+                        groupNameController.clear();
+                        invitationCodeController.clear();
+                        groupAction = 'create';
                         selectedPaymentProvider = null;
                       });
                     },
                   ),
 
+                  if (isGroupCategory(selectedCategory)) ...[
+                    const SizedBox(height: 12),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: 'create',
+                          label: Text('Create Group'),
+                        ),
+                        ButtonSegment(value: 'join', label: Text('Join Group')),
+                      ],
+                      selected: {groupAction},
+                      onSelectionChanged: (value) =>
+                          setState(() => groupAction = value.single),
+                    ),
+                    TextField(
+                      controller: groupAction == 'create'
+                          ? groupNameController
+                          : invitationCodeController,
+                      decoration: InputDecoration(
+                        labelText: groupAction == 'create'
+                            ? 'Group name'
+                            : 'Invitation code',
+                      ),
+                    ),
+                  ],
                   if (selectedCategory != null &&
                       categoryQualificationNotes(
                         selectedCategory!,
