@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../pages/places_page.dart';
 import '../pages/search_page.dart';
 import '../pages/user_profile_page.dart';
@@ -53,7 +54,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
   }
 
   Color navColor(bool active) {
-    return active ? const Color(0xFF2563EB) : const Color(0xFF64748B);
+    return active ? AppColors.primary : const Color(0xFF64748B);
   }
 
   @override
@@ -75,7 +76,7 @@ class _AppBottomNavBarState extends State<AppBottomNavBar> {
         borderRadius: BorderRadius.circular(26),
         child: NavigationBar(
           backgroundColor: Colors.white,
-          indicatorColor: const Color(0xFFEAF2FF),
+          indicatorColor: AppColors.primarySoft,
           selectedIndex: switch (widget.currentPage) {
             AppNavPage.home => 0,
             AppNavPage.training => 1,

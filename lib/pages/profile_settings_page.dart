@@ -7,6 +7,34 @@ import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../widgets/health_conditions_selector.dart';
 
+// ============================================================
+// RACETECH DESIGN SYSTEM — soft indigo
+// ============================================================
+
+const _primary = Color(0xFF6366F1); // indigo-500
+const _primaryDeep = Color(0xFF4F46E5); // indigo-600
+const _accent = Color(0xFF0EA5E9); // sky-500
+const _primarySoft = Color(0xFFEEF2FF); // indigo-50
+const _ink = Color(0xFF1E293B);
+const _body = Color(0xFF475569);
+const _muted = Color(0xFF64748B);
+const _faint = Color(0xFF94A3B8);
+const _border = Color(0xFFE2E8F0);
+const _background = Color(0xFFF5F7FB);
+const _fieldFill = Color(0xFFF8FAFC);
+const _success = Color(0xFF16A34A);
+const _successSoft = Color(0xFFDCFCE7);
+const _error = Color(0xFFE11D48);
+const _warning = Color(0xFFB45309);
+
+const List<BoxShadow> _softShadow = [
+  BoxShadow(color: Color(0x1F94A3B8), blurRadius: 24, offset: Offset(0, 8)),
+];
+
+// ============================================================
+// PROFILE SETTINGS PAGE
+// ============================================================
+
 class ProfileSettingsPage extends StatefulWidget {
   const ProfileSettingsPage({super.key});
 
@@ -24,11 +52,19 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   final medicalConditionsController = TextEditingController();
 
   String? selectedGender;
+
   String avatarUrl = "";
   File? selectedAvatar;
+
   bool isLoading = true;
   bool isSaving = false;
-  bool profileCompletionExpanded = true;
+
+  /// Missing fields are only highlighted after the first Save attempt.
+  bool showValidationErrors = false;
+
+  /// Form values right after loading — used to detect unsaved edits.
+  String savedSnapshot = "";
+
   final imagePicker = ImagePicker();
 
   final List<TextInputFormatter> phoneFormatters = [
@@ -36,9 +72,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     LengthLimitingTextInputFormatter(11),
   ];
 
+  // ============================================================
+  // LIFECYCLE
+  // ============================================================
+
   @override
   void initState() {
     super.initState();
+
     for (final controller in [
       nameController,
       phoneController,
@@ -46,9 +87,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       addressController,
       emergencyNameController,
       emergencyNumberController,
+      medicalConditionsController,
     ]) {
-      controller.addListener(refreshCompletionStatus);
+      controller.addListener(onFormChanged);
     }
+
     loadProfile();
   }
 
@@ -63,6 +106,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     medicalConditionsController.dispose();
     super.dispose();
   }
+
+  void onFormChanged() {
+    if (mounted) setState(() {});
+  }
+
+  // ============================================================
+  // LOAD
+  // ============================================================
 
   Future<void> loadProfile() async {
     final user = await ApiService().getUser();
@@ -84,11 +135,92 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       avatarUrl = (user["avatar_url"] ?? "").toString();
     }
 
+    selectedAvatar = null;
+
     setState(() {
       isLoading = false;
-      profileCompletionExpanded = !isProfileComplete;
+      showValidationErrors = false;
+      savedSnapshot = formSnapshot();
     });
   }
+
+  Future<void> refreshProfile() async {
+    if (isLoading || isSaving) return;
+    if (hasUnsavedChanges && !await confirmDiscardChanges()) return;
+    if (!mounted) return;
+
+    setState(() => isLoading = true);
+    await loadProfile();
+  }
+
+  // ============================================================
+  // UNSAVED CHANGES
+  // ============================================================
+
+  String formSnapshot() {
+    return [
+      nameController.text,
+      phoneController.text,
+      selectedGender ?? "",
+      birthdateController.text,
+      addressController.text,
+      emergencyNameController.text,
+      emergencyNumberController.text,
+      medicalConditionsController.text,
+      selectedAvatar?.path ?? "",
+    ].map((value) => value.trim()).join("\u0000");
+  }
+
+  bool get hasUnsavedChanges => !isLoading && formSnapshot() != savedSnapshot;
+
+  Future<bool> confirmDiscardChanges() async {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        icon: const _IconTile(
+          icon: Icons.edit_note_rounded,
+          size: 60,
+          iconSize: 30,
+        ),
+        title: const Text(
+          "Discard changes?",
+          style: TextStyle(fontWeight: FontWeight.w900, color: _ink),
+        ),
+        content: const Text(
+          "You have unsaved edits to your profile. They will be lost if you leave now.",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _muted, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: _muted),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Discard"),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: _primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Keep editing"),
+          ),
+        ],
+      ),
+    );
+
+    return discard == true;
+  }
+
+  // ============================================================
+  // AVATAR
+  // ============================================================
 
   Future<void> pickAvatar() async {
     final picked = await imagePicker.pickImage(
@@ -97,15 +229,17 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       maxWidth: 900,
     );
 
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
 
     setState(() => selectedAvatar = File(picked.path));
   }
 
-  String? normalizeGender(String value) {
-    final normalized = value.trim().toLowerCase();
+  // ============================================================
+  // GENDER
+  // ============================================================
 
-    return switch (normalized) {
+  String? normalizeGender(String value) {
+    return switch (value.trim().toLowerCase()) {
       "male" => "Male",
       "female" => "Female",
       "other" => "Other",
@@ -113,13 +247,40 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     };
   }
 
+  // ============================================================
+  // BIRTHDATE
+  // ============================================================
+
   Future<void> pickBirthdate() async {
-    final initialDate = DateTime.tryParse(birthdateController.text);
+    FocusScope.of(context).unfocus();
+
+    final parsed = DateTime.tryParse(birthdateController.text);
+    final lastDate = DateTime.now();
+
+    // Same 1950 floor as before (no backend impact). If a saved birthdate is
+    // older, start from it instead — showDatePicker crashes when initialDate
+    // falls outside firstDate..lastDate.
+    var firstDate = DateTime(1950);
+    if (parsed != null && parsed.isBefore(firstDate)) firstDate = parsed;
+
+    var initialDate = parsed ?? DateTime(2000);
+    if (initialDate.isAfter(lastDate)) initialDate = lastDate;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate ?? DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: DateTime.now(),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: _primary,
+            onPrimary: Colors.white,
+            onSurface: _ink,
+          ),
+        ),
+        child: child!,
+      ),
     );
 
     if (picked == null) return;
@@ -129,87 +290,85 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     });
   }
 
-  void refreshCompletionStatus() {
-    if (!mounted) return;
-    setState(() {});
-  }
+  String? get birthdateHelper {
+    final parsed = DateTime.tryParse(birthdateController.text);
+    if (parsed == null) return null;
 
-  bool get isProfileComplete {
-    return profileChecklist.every((item) => item.isComplete);
-  }
-
-  int get completedProfileItems {
-    return profileChecklist.where((item) => item.isComplete).length;
-  }
-
-  void toggleProfileCompletionPanel() {
-    setState(() {
-      profileCompletionExpanded = !profileCompletionExpanded;
-    });
-  }
-
-  List<_ProfileChecklistItem> get profileChecklist {
-    return [
-      _ProfileChecklistItem(
-        label: "Full name",
-        isComplete: nameController.text.trim().isNotEmpty,
-        icon: Icons.person_outline,
-      ),
-      _ProfileChecklistItem(
-        label: "Phone number",
-        isComplete: phoneController.text.trim().length == 11,
-        icon: Icons.phone_outlined,
-      ),
-      _ProfileChecklistItem(
-        label: "Gender",
-        isComplete: (selectedGender ?? "").trim().isNotEmpty,
-        icon: Icons.wc_outlined,
-      ),
-      _ProfileChecklistItem(
-        label: "Birthdate",
-        isComplete: birthdateController.text.trim().isNotEmpty,
-        icon: Icons.cake_outlined,
-      ),
-      _ProfileChecklistItem(
-        label: "Address",
-        isComplete: addressController.text.trim().isNotEmpty,
-        icon: Icons.location_on_outlined,
-      ),
-      _ProfileChecklistItem(
-        label: "Emergency name",
-        isComplete: emergencyNameController.text.trim().isNotEmpty,
-        icon: Icons.contact_emergency_outlined,
-      ),
-      _ProfileChecklistItem(
-        label: "Emergency phone",
-        isComplete: emergencyNumberController.text.trim().length == 11,
-        icon: Icons.phone_in_talk_outlined,
-      ),
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
     ];
+    final now = DateTime.now();
+    var age = now.year - parsed.year;
+    if (now.month < parsed.month ||
+        (now.month == parsed.month && now.day < parsed.day)) {
+      age--;
+    }
+
+    return "${months[parsed.month - 1]} ${parsed.day}, ${parsed.year} · $age years old";
   }
+
+  // ============================================================
+  // VALIDATION
+  // ============================================================
+
+  bool get nameValid => nameController.text.trim().isNotEmpty;
+  bool get phoneValid => phoneController.text.trim().length == 11;
+  bool get genderValid => (selectedGender ?? "").isNotEmpty;
+  bool get birthdateValid => birthdateController.text.trim().isNotEmpty;
+  bool get addressValid => addressController.text.trim().isNotEmpty;
+  bool get emergencyNameValid => emergencyNameController.text.trim().isNotEmpty;
+  bool get emergencyNumberValid =>
+      emergencyNumberController.text.trim().length == 11;
+
+  List<bool> get personalChecks => [nameValid, genderValid, birthdateValid];
+  List<bool> get contactChecks => [phoneValid, addressValid];
+  List<bool> get emergencyChecks => [emergencyNameValid, emergencyNumberValid];
+
+  int get completedCount => [
+    ...personalChecks,
+    ...contactChecks,
+    ...emergencyChecks,
+  ].where((done) => done).length;
+
+  static const int totalRequired = 7;
+
+  bool get isProfileComplete => completedCount == totalRequired;
+
+  String? errorFor(bool valid, String message) =>
+      showValidationErrors && !valid ? message : null;
+
+  // ============================================================
+  // SAVE
+  // ============================================================
 
   Future<void> saveProfile() async {
-    final name = nameController.text.trim();
-    final phone = phoneController.text.trim();
-    final gender = selectedGender ?? "";
-    final birthdate = birthdateController.text.trim();
-    final address = addressController.text.trim();
-    final emergencyName = emergencyNameController.text.trim();
-    final emergencyNumber = emergencyNumberController.text.trim();
-    final medicalConditions = medicalConditionsController.text.trim();
+    FocusScope.of(context).unfocus();
 
-    if (name.isEmpty ||
-        phone.isEmpty ||
-        gender.isEmpty ||
-        birthdate.isEmpty ||
-        address.isEmpty ||
-        emergencyName.isEmpty ||
-        emergencyNumber.isEmpty) {
+    if (!nameValid ||
+        phoneController.text.trim().isEmpty ||
+        !genderValid ||
+        !birthdateValid ||
+        !addressValid ||
+        !emergencyNameValid ||
+        emergencyNumberController.text.trim().isEmpty) {
+      setState(() => showValidationErrors = true);
       showMessage("Please complete all required fields.");
       return;
     }
 
-    if (phone.length != 11 || emergencyNumber.length != 11) {
+    if (!phoneValid || !emergencyNumberValid) {
+      setState(() => showValidationErrors = true);
       showMessage("Phone numbers must be 11 digits.");
       return;
     }
@@ -217,14 +376,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     setState(() => isSaving = true);
 
     final result = await ApiService().updateProfile(
-      name: name,
-      phone: phone,
-      gender: gender,
-      birthdate: birthdate,
-      address: address,
-      emergencyContactName: emergencyName,
-      emergencyContactNumber: emergencyNumber,
-      medicalConditions: medicalConditions,
+      name: nameController.text.trim(),
+      phone: phoneController.text.trim(),
+      gender: selectedGender ?? "",
+      birthdate: birthdateController.text.trim(),
+      address: addressController.text.trim(),
+      emergencyContactName: emergencyNameController.text.trim(),
+      emergencyContactNumber: emergencyNumberController.text.trim(),
+      medicalConditions: medicalConditionsController.text.trim(),
       avatarPath: selectedAvatar?.path,
     );
 
@@ -232,11 +391,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     setState(() => isSaving = false);
 
+    showMessage(result.message);
+
     if (result.success) {
-      showMessage(result.message);
+      savedSnapshot = formSnapshot();
+      // pop (not maybePop) so the unsaved-changes guard is skipped.
       Navigator.pop(context, true);
-    } else {
-      showMessage(result.message);
     }
   }
 
@@ -246,429 +406,313 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     );
   }
 
-  Widget profileCompletionPanel() {
-    final checklist = profileChecklist;
-    final completed = completedProfileItems;
-    final total = checklist.length;
-    final progress = total == 0 ? 0.0 : completed / total;
-    final complete = isProfileComplete;
-    final expanded = profileCompletionExpanded;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: toggleProfileCompletionPanel,
-            borderRadius: BorderRadius.circular(18),
-            child: Row(
-              children: [
-                Container(
-                  height: 44,
-                  width: 44,
-                  decoration: BoxDecoration(
-                    color: complete
-                        ? const Color(0xFFDCFCE7)
-                        : const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(
-                    complete
-                        ? Icons.verified_user_outlined
-                        : Icons.assignment_late_outlined,
-                    color: complete
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFF97316),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        complete ? "Profile Complete" : "Missing Details",
-                        style: const TextStyle(
-                          color: Color(0xFF111827),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        "$completed of $total required items completed",
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 40,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: AnimatedRotation(
-                    turns: expanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 180),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: Color(0xFF334155),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              minHeight: 8,
-              value: progress,
-              backgroundColor: const Color(0xFFE2E8F0),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                complete ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
-              ),
-            ),
-          ),
-          AnimatedCrossFade(
-            firstChild: const SizedBox(width: double.infinity),
-            secondChild: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: checklist.map(profileChecklistChip).toList(),
-                ),
-              ],
-            ),
-            crossFadeState: expanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 180),
-            sizeCurve: Curves.easeOut,
-            firstCurve: Curves.easeOut,
-            secondCurve: Curves.easeOut,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget profileChecklistChip(_ProfileChecklistItem item) {
-    final color = item.isComplete
-        ? const Color(0xFF16A34A)
-        : const Color(0xFF64748B);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: item.isComplete
-            ? const Color(0xFFDCFCE7)
-            : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(
-          color: item.isComplete
-              ? const Color(0xFFBBF7D0)
-              : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            item.isComplete ? Icons.check_circle : item.icon,
-            color: color,
-            size: 15,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            item.label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEFF3F9),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _HeaderSection(
-              isSaving: isSaving,
-              onBack: () => Navigator.pop(context),
-            ),
+    final unsaved = hasUnsavedChanges;
 
-            Expanded(
-              child: isLoading
-                  ? const _ProfileSettingsLoadingState()
-                  : RefreshIndicator(
-                      onRefresh: () async {
-                        setState(() => isLoading = true);
-                        await loadProfile();
-                      },
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
-                        ),
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                        child: Column(
-                          children: [
-                            profileCompletionPanel(),
-
-                            const SizedBox(height: 15),
-
-                            section(
-                              title: "Personal Details",
-                              subtitle:
-                                  "Used for registrations and race day records.",
-                              icon: Icons.person_outline,
-                              children: [
-                                _AvatarPicker(
-                                  avatarUrl: avatarUrl,
-                                  selectedAvatar: selectedAvatar,
-                                  displayName: nameController.text.trim(),
-                                  onTap: isSaving ? null : pickAvatar,
-                                ),
-                                const SizedBox(height: 18),
-                                inputField(
-                                  controller: nameController,
-                                  label: "Full Name",
-                                  icon: Icons.person_outline,
-                                ),
-                                const SizedBox(height: 15),
-                                inputField(
-                                  controller: phoneController,
-                                  label: "Phone Number",
-                                  icon: Icons.phone_outlined,
-                                  keyboardType: TextInputType.phone,
-                                  inputFormatters: phoneFormatters,
-                                ),
-                                const SizedBox(height: 15),
-                                DropdownButtonFormField<String>(
-                                  initialValue: selectedGender,
-                                  decoration: fieldDecoration(
-                                    "Gender *",
-                                    Icons.wc_outlined,
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: "Male",
-                                      child: Text("Male"),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: "Female",
-                                      child: Text("Female"),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: "Other",
-                                      child: Text("Other"),
-                                    ),
-                                  ],
-                                  onChanged: isSaving
-                                      ? null
-                                      : (value) {
-                                          setState(
-                                            () => selectedGender = value,
-                                          );
-                                        },
-                                ),
-                                const SizedBox(height: 15),
-                                GestureDetector(
-                                  onTap: isSaving ? null : pickBirthdate,
-                                  child: AbsorbPointer(
-                                    child: inputField(
-                                      controller: birthdateController,
-                                      label: "Birthdate",
-                                      icon: Icons.cake_outlined,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 15),
-                                inputField(
-                                  controller: addressController,
-                                  label: "Address",
-                                  icon: Icons.location_on_outlined,
-                                  maxLines: 2,
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 15),
-
-                            section(
-                              title: "Emergency and Medical",
-                              subtitle:
-                                  "Helpful details for safer event support.",
-                              icon: Icons.health_and_safety_outlined,
-                              children: [
-                                inputField(
-                                  controller: emergencyNameController,
-                                  label: "Emergency Contact Name",
-                                  icon: Icons.contact_emergency_outlined,
-                                ),
-                                const SizedBox(height: 15),
-                                inputField(
-                                  controller: emergencyNumberController,
-                                  label: "Emergency Contact Number",
-                                  icon: Icons.phone_in_talk_outlined,
-                                  keyboardType: TextInputType.phone,
-                                  inputFormatters: phoneFormatters,
-                                ),
-                                const SizedBox(height: 15),
-                                HealthConditionsSelector(
-                                  controller: medicalConditionsController,
-                                  enabled: !isSaving,
-                                  title: "Health notes",
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 20),
-
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton.icon(
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2563EB),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 15,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                onPressed: isSaving ? null : saveProfile,
-                                icon: isSaving
-                                    ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : const Icon(Icons.save_outlined),
-                                label: Text(
-                                  isSaving ? "Saving..." : "Save Profile",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+    return PopScope(
+      canPop: !isSaving && !unsaved,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || isSaving) return;
+        if (await confirmDiscardChanges() && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: _background,
+          body: RefreshIndicator(
+            color: _primary,
+            onRefresh: refreshProfile,
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _ProfileHero(
+                    isLoading: isLoading,
+                    isSaving: isSaving,
+                    hasUnsavedChanges: unsaved,
+                    name: nameController.text.trim(),
+                    avatarUrl: avatarUrl,
+                    selectedAvatar: selectedAvatar,
+                    completed: completedCount,
+                    total: totalRequired,
+                    onBack: () => Navigator.maybePop(context),
+                    onPickAvatar: isSaving || isLoading ? null : pickAvatar,
+                  ),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                  sliver: SliverToBoxAdapter(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 600),
+                        child: isLoading
+                            ? const _LoadingSections()
+                            : formSections(),
                       ),
                     ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+          bottomNavigationBar: isLoading ? null : saveBar(unsaved),
         ),
       ),
     );
   }
 
-  Widget section({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
+  Widget formSections() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!isProfileComplete) ...[
+          _NoticeBanner(
+            icon: Icons.event_available_outlined,
+            color: _primaryDeep,
+            background: _primarySoft,
+            message:
+                "Complete all required details to join events. "
+                "${totalRequired - completedCount} left.",
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // ---------------- PERSONAL ----------------
+        _SectionCard(
+          title: "Personal",
+          icon: Icons.person_outline_rounded,
+          checks: personalChecks,
+          children: [
+            inputField(
+              controller: nameController,
+              label: "Full Name",
+              icon: Icons.badge_outlined,
+              errorText: errorFor(nameValid, "Enter your full name"),
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.name],
+            ),
+            const SizedBox(height: 16),
+            _GenderSelector(
+              value: selectedGender,
+              enabled: !isSaving,
+              errorText: errorFor(genderValid, "Select your gender"),
+              onChanged: (value) => setState(() => selectedGender = value),
+            ),
+            const SizedBox(height: 16),
+            inputField(
+              controller: birthdateController,
+              label: "Birthdate",
+              icon: Icons.cake_outlined,
+              readOnly: true,
+              onTap: isSaving ? null : pickBirthdate,
+              helperText: birthdateHelper,
+              errorText: errorFor(birthdateValid, "Pick your birthdate"),
+              suffixIcon: const Icon(
+                Icons.edit_calendar_outlined,
+                color: _faint,
+                size: 20,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // ---------------- CONTACT ----------------
+        _SectionCard(
+          title: "Contact",
+          icon: Icons.call_outlined,
+          checks: contactChecks,
+          children: [
+            inputField(
+              controller: phoneController,
+              label: "Phone Number",
+              icon: Icons.phone_outlined,
+              keyboardType: TextInputType.phone,
+              inputFormatters: phoneFormatters,
+              hintText: "09XXXXXXXXX",
+              errorText: errorFor(phoneValid, "Must be 11 digits"),
+              counterFor: phoneController,
+              autofillHints: const [AutofillHints.telephoneNumber],
+            ),
+            const SizedBox(height: 16),
+            inputField(
+              controller: addressController,
+              label: "Address",
+              icon: Icons.location_on_outlined,
+              maxLines: 2,
+              errorText: errorFor(addressValid, "Enter your address"),
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.fullStreetAddress],
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // ---------------- EMERGENCY ----------------
+        _SectionCard(
+          title: "Emergency Contact",
+          icon: Icons.contact_emergency_outlined,
+          checks: emergencyChecks,
+          children: [
+            const _NoticeBanner(
+              icon: Icons.info_outline_rounded,
+              color: _primaryDeep,
+              background: _primarySoft,
+              message:
+                  "Organizers will call this person if something happens during an event.",
+            ),
+            const SizedBox(height: 16),
+            inputField(
+              controller: emergencyNameController,
+              label: "Contact Name",
+              icon: Icons.person_pin_outlined,
+              errorText: errorFor(emergencyNameValid, "Enter a contact name"),
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 16),
+            inputField(
+              controller: emergencyNumberController,
+              label: "Contact Number",
+              icon: Icons.phone_in_talk_outlined,
+              keyboardType: TextInputType.phone,
+              inputFormatters: phoneFormatters,
+              hintText: "09XXXXXXXXX",
+              errorText: errorFor(emergencyNumberValid, "Must be 11 digits"),
+              counterFor: emergencyNumberController,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // ---------------- HEALTH ----------------
+        _SectionCard(
+          title: "Health Notes",
+          subtitle: "Optional",
+          icon: Icons.health_and_safety_outlined,
+          children: [
+            HealthConditionsSelector(
+              controller: medicalConditionsController,
+              enabled: !isSaving,
+              title: "Health notes",
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        const Text(
+          "Train smarter. Perform better.",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _faint,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget saveBar(bool unsaved) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
+            color: Color(0x1A94A3B8),
+            blurRadius: 20,
+            offset: Offset(0, -6),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEAF2FF),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: const Color(0xFF2563EB), size: 21),
-              ),
-              const SizedBox(width: 11),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF111827),
-                        letterSpacing: -0.2,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: Text(
+                        key: ValueKey(unsaved),
+                        unsaved
+                            ? "You have unsaved changes"
+                            : "All changes saved",
+                        style: TextStyle(
+                          color: unsaved ? _warning : _muted,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.25,
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: _primary.withValues(
+                          alpha: 0.5,
+                        ),
+                        disabledForegroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: isSaving ? null : saveProfile,
+                      icon: isSaving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.3,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_rounded, size: 20),
+                      label: Text(
+                        isSaving ? "Saving..." : "Save",
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-          const SizedBox(height: 18),
-          ...children,
-        ],
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // FIELDS
+  // ============================================================
 
   Widget inputField({
     required TextEditingController controller,
@@ -677,128 +721,444 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     int maxLines = 1,
-    bool required = true,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    String? hintText,
+    String? helperText,
+    String? errorText,
+    Widget? suffixIcon,
+    TextEditingController? counterFor,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    TextInputAction textInputAction = TextInputAction.next,
+    Iterable<String>? autofillHints,
   }) {
+    // Live "7/11" counter for phone fields so users see how many digits remain.
+    final counter = counterFor == null || counterFor.text.isEmpty
+        ? null
+        : "${counterFor.text.length}/11";
+
     return TextField(
       controller: controller,
       enabled: !isSaving,
+      readOnly: readOnly,
+      onTap: onTap,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       maxLines: maxLines,
+      textCapitalization: textCapitalization,
+      textInputAction: maxLines > 1 ? TextInputAction.newline : textInputAction,
+      autofillHints: autofillHints,
+      cursorColor: _primary,
       style: const TextStyle(
-        color: Color(0xFF111827),
+        color: _ink,
+        fontSize: 14.5,
         fontWeight: FontWeight.w600,
       ),
-      decoration: fieldDecoration(required ? "$label *" : label, icon),
-    );
-  }
-
-  InputDecoration fieldDecoration(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(
-        color: Color(0xFF64748B),
-        fontWeight: FontWeight.w600,
-      ),
-      prefixIcon: Icon(icon, color: const Color(0xFF2563EB)),
-      filled: true,
-      fillColor: const Color(0xFFF8FAFC),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.6),
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide.none,
+      decoration: _fieldDecoration(
+        label: "$label *",
+        icon: icon,
+        hintText: hintText,
+        helperText: helperText,
+        errorText: errorText,
+        suffixIcon: suffixIcon,
+        counterText: counter,
       ),
     );
   }
 }
 
-class _AvatarPicker extends StatelessWidget {
+InputDecoration _fieldDecoration({
+  required String label,
+  required IconData icon,
+  String? hintText,
+  String? helperText,
+  String? errorText,
+  String? counterText,
+  Widget? suffixIcon,
+}) {
+  OutlineInputBorder outline(Color color, [double width = 1]) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
+  return InputDecoration(
+    labelText: label,
+    hintText: hintText,
+    helperText: helperText,
+    errorText: errorText,
+    counterText: counterText,
+    hintStyle: const TextStyle(color: _faint, fontWeight: FontWeight.w500),
+    helperStyle: const TextStyle(
+      color: _primaryDeep,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w700,
+    ),
+    errorStyle: const TextStyle(
+      color: _error,
+      fontSize: 11.5,
+      fontWeight: FontWeight.w700,
+    ),
+    counterStyle: const TextStyle(
+      color: _faint,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+    ),
+    labelStyle: const TextStyle(
+      color: _muted,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+    ),
+    floatingLabelStyle: WidgetStateTextStyle.resolveWith(
+      (states) => TextStyle(
+        color: states.contains(WidgetState.error) ? _error : _primary,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+    prefixIcon: Icon(icon, color: _primary, size: 20),
+    suffixIcon: suffixIcon,
+    filled: true,
+    fillColor: _fieldFill,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
+    enabledBorder: outline(_border),
+    disabledBorder: outline(_border),
+    focusedBorder: outline(_primary, 1.5),
+    errorBorder: outline(_error.withValues(alpha: 0.6)),
+    focusedErrorBorder: outline(_error, 1.5),
+    border: outline(_border),
+  );
+}
+
+// ============================================================
+// HERO HEADER
+// ============================================================
+
+class _ProfileHero extends StatelessWidget {
+  final bool isLoading;
+  final bool isSaving;
+  final bool hasUnsavedChanges;
+  final String name;
   final String avatarUrl;
   final File? selectedAvatar;
-  final String displayName;
-  final VoidCallback? onTap;
+  final int completed;
+  final int total;
+  final VoidCallback onBack;
+  final VoidCallback? onPickAvatar;
 
-  const _AvatarPicker({
+  const _ProfileHero({
+    required this.isLoading,
+    required this.isSaving,
+    required this.hasUnsavedChanges,
+    required this.name,
     required this.avatarUrl,
     required this.selectedAvatar,
-    required this.displayName,
+    required this.completed,
+    required this.total,
+    required this.onBack,
+    required this.onPickAvatar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    final progress = total == 0 ? 0.0 : completed / total;
+    final complete = completed == total;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(16, topInset + 10, 16, 28),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_primaryDeep, _primary, _accent],
+          stops: [0, 0.55, 1],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
+              // ---- Top bar ----
+              Row(
+                children: [
+                  _GlassButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: "Back",
+                    onTap: isSaving ? null : onBack,
+                  ),
+                  const Expanded(
+                    child: Text(
+                      "Profile Settings",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  // Keeps the title centered; shows "Unsaved" when relevant.
+                  SizedBox(
+                    width: 44,
+                    child: hasUnsavedChanges
+                        ? const Tooltip(
+                            message: "Unsaved changes",
+                            child: Icon(
+                              Icons.circle,
+                              color: Color(0xFFFCD34D),
+                              size: 12,
+                            ),
+                          )
+                        : null,
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 22),
+
+              // ---- Avatar ----
+              _HeroAvatar(
+                avatarUrl: avatarUrl,
+                selectedAvatar: selectedAvatar,
+                name: name,
+                onTap: onPickAvatar,
+              ),
+
+              const SizedBox(height: 14),
+
+              Text(
+                isLoading ? "Loading..." : (name.isEmpty ? "Your name" : name),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.3,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                selectedAvatar != null
+                    ? "New photo selected — save to apply"
+                    : "Tap your photo to change it",
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ---- Completion card ----
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          complete
+                              ? Icons.verified_rounded
+                              : Icons.assignment_outlined,
+                          color: Colors.white,
+                          size: 19,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            complete
+                                ? "Profile complete — ready to join events"
+                                : "Profile completion",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          isLoading ? "–" : "$completed/$total",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(end: isLoading ? 0 : progress),
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, _) => LinearProgressIndicator(
+                          value: value,
+                          minHeight: 7,
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          color: complete
+                              ? const Color(0xFF86EFAC)
+                              : Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+
+  const _GlassButton({required this.icon, required this.tooltip, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(
+            height: 44,
+            width: 44,
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroAvatar extends StatelessWidget {
+  final String avatarUrl;
+  final File? selectedAvatar;
+  final String name;
+  final VoidCallback? onTap;
+
+  const _HeroAvatar({
+    required this.avatarUrl,
+    required this.selectedAvatar,
+    required this.name,
     required this.onTap,
   });
 
-  String get initial {
-    final trimmed = displayName.trim();
-    return trimmed.isEmpty ? "R" : trimmed[0].toUpperCase();
+  Widget initialFallback() {
+    final trimmed = name.trim();
+    return Center(
+      child: Text(
+        trimmed.isEmpty ? "R" : trimmed[0].toUpperCase(),
+        style: const TextStyle(
+          color: _primary,
+          fontSize: 40,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
   }
 
-  ImageProvider? get imageProvider {
+  Widget image() {
     if (selectedAvatar != null) {
-      return FileImage(selectedAvatar!);
+      return Image.file(
+        selectedAvatar!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => initialFallback(),
+      );
     }
 
     if (avatarUrl.isNotEmpty) {
-      return NetworkImage(avatarUrl);
+      return Image.network(
+        avatarUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) =>
+            progress == null ? child : initialFallback(),
+        errorBuilder: (context, error, stackTrace) => initialFallback(),
+      );
     }
 
-    return null;
+    return initialFallback();
   }
 
   @override
   Widget build(BuildContext context) {
-    final image = imageProvider;
-
-    return Center(
-      child: InkWell(
+    return Semantics(
+      button: true,
+      label: "Change profile photo",
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             Container(
-              height: 104,
-              width: 104,
+              height: 112,
+              width: 112,
+              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FF),
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFD8E7FF), width: 4),
-                image: image == null
-                    ? null
-                    : DecorationImage(image: image, fit: BoxFit.cover),
+                color: Colors.white.withValues(alpha: 0.3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
               ),
-              child: image == null
-                  ? Center(
-                      child: Text(
-                        initial,
-                        style: const TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontSize: 38,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    )
-                  : null,
+              child: ClipOval(
+                child: ColoredBox(
+                  color: _primarySoft,
+                  child: SizedBox.expand(child: image()),
+                ),
+              ),
             ),
             Positioned(
-              right: -2,
-              bottom: -2,
+              right: 0,
+              bottom: 2,
               child: Container(
                 height: 36,
                 width: 36,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB),
+                  color: Colors.white,
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: const Icon(
-                  Icons.camera_alt_outlined,
-                  color: Colors.white,
+                  Icons.photo_camera_rounded,
+                  color: _primary,
                   size: 18,
                 ),
               ),
@@ -810,220 +1170,399 @@ class _AvatarPicker extends StatelessWidget {
   }
 }
 
-class _ProfileSettingsLoadingState extends StatelessWidget {
-  const _ProfileSettingsLoadingState();
+// ============================================================
+// SECTION CARD
+// ============================================================
+
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final IconData icon;
+  final List<bool>? checks;
+  final List<Widget> children;
+
+  const _SectionCard({
+    required this.title,
+    required this.icon,
+    required this.children,
+    this.subtitle,
+    this.checks,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      child: Column(
-        children: const [
-          _ProfileSkeletonCard(
-            rows: [
-              _SkeletonRow(width: 170),
-              _SkeletonRow(width: double.infinity),
-              _SkeletonRow(width: 240),
-            ],
-          ),
-          SizedBox(height: 15),
-          _ProfileSkeletonCard(
-            rows: [
-              _SkeletonRow(width: 150),
-              _SkeletonRow(width: double.infinity),
-              _SkeletonRow(width: double.infinity),
-              _SkeletonRow(width: double.infinity),
-            ],
-          ),
-          SizedBox(height: 15),
-          _ProfileSkeletonCard(
-            rows: [
-              _SkeletonRow(width: 190),
-              _SkeletonRow(width: double.infinity),
-              _SkeletonRow(width: double.infinity),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+    final done = checks?.where((value) => value).length ?? 0;
+    final total = checks?.length ?? 0;
+    final complete = checks != null && done == total;
 
-class _ProfileSkeletonCard extends StatelessWidget {
-  final List<_SkeletonRow> rows;
-
-  const _ProfileSkeletonCard({required this.rows});
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        boxShadow: _softShadow,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            children: const [
-              _SkeletonBlock(height: 40, width: 40, radius: 14),
-              SizedBox(width: 11),
+            children: [
+              _IconTile(icon: icon, size: 40, iconSize: 20),
+              const SizedBox(width: 12),
               Expanded(
-                child: _SkeletonBlock(
-                  height: 16,
-                  width: double.infinity,
-                  radius: 8,
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
                 ),
               ),
+              if (checks != null)
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: complete ? _successSoft : _fieldFill,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (complete) ...[
+                        const Icon(
+                          Icons.check_rounded,
+                          size: 14,
+                          color: _success,
+                        ),
+                        const SizedBox(width: 4),
+                      ],
+                      Text(
+                        complete ? "Done" : "$done/$total",
+                        style: TextStyle(
+                          color: complete ? _success : _muted,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (subtitle != null)
+                Text(
+                  subtitle!,
+                  style: const TextStyle(
+                    color: _faint,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 18),
-          ...rows,
+          ...children,
         ],
       ),
     );
   }
 }
 
-class _SkeletonRow extends StatelessWidget {
-  final double width;
+// ============================================================
+// GENDER SELECTOR — three tappable pills instead of a dropdown
+// ============================================================
 
-  const _SkeletonRow({required this.width});
+class _GenderSelector extends StatelessWidget {
+  final String? value;
+  final bool enabled;
+  final String? errorText;
+  final ValueChanged<String> onChanged;
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: _SkeletonBlock(height: 50, width: width, radius: 18),
-    );
-  }
-}
-
-class _SkeletonBlock extends StatelessWidget {
-  final double height;
-  final double width;
-  final double radius;
-
-  const _SkeletonBlock({
-    required this.height,
-    required this.width,
-    required this.radius,
+  const _GenderSelector({
+    required this.value,
+    required this.enabled,
+    required this.errorText,
+    required this.onChanged,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      width: width,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    );
-  }
-}
-
-class _ProfileChecklistItem {
-  final String label;
-  final bool isComplete;
-  final IconData icon;
-
-  const _ProfileChecklistItem({
-    required this.label,
-    required this.isComplete,
-    required this.icon,
-  });
-}
-
-class _HeaderSection extends StatelessWidget {
-  final bool isSaving;
-  final VoidCallback onBack;
-
-  const _HeaderSection({required this.isSaving, required this.onBack});
+  static const _options = [
+    ("Male", Icons.male_rounded),
+    ("Female", Icons.female_rounded),
+    ("Other", Icons.transgender_rounded),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 5),
+    final hasError = errorText != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            "Gender *",
+            style: TextStyle(
+              color: hasError ? _error : _muted,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+        ),
+        Row(
+          children: [
+            for (final (index, option) in _options.indexed) ...[
+              if (index > 0) const SizedBox(width: 8),
+              Expanded(
+                child: _GenderPill(
+                  label: option.$1,
+                  icon: option.$2,
+                  selected: value == option.$1,
+                  hasError: hasError,
+                  onTap: enabled ? () => onChanged(option.$1) : null,
+                ),
+              ),
+            ],
           ],
         ),
-        child: Row(
-          children: [
-            IconButton.filledTonal(
-              style: IconButton.styleFrom(
-                backgroundColor: const Color(0xFFEAF2FF),
-                foregroundColor: const Color(0xFF2563EB),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 12, top: 6),
+            child: Text(
+              errorText!,
+              style: const TextStyle(
+                color: _error,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
               ),
-              onPressed: isSaving ? null : onBack,
-              icon: const Icon(Icons.arrow_back),
             ),
+          ),
+      ],
+    );
+  }
+}
 
-            const SizedBox(width: 12),
+class _GenderPill extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final bool hasError;
+  final VoidCallback? onTap;
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  const _GenderPill({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.hasError,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: selected ? _primary : _fieldFill,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? _primary
+                : hasError
+                ? _error.withValues(alpha: 0.5)
+                : _border,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text(
-                    "Profile Settings",
-                    style: TextStyle(
-                      color: Color(0xFF111827),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.3,
-                    ),
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: selected ? Colors.white : _primary,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    isSaving
-                        ? "Saving your profile..."
-                        : "Complete your event profile",
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selected ? Colors.white : _body,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            Container(
-              height: 46,
-              width: 46,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEAF2FF),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.manage_accounts_outlined,
-                color: Color(0xFF2563EB),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
+  }
+}
+
+// ============================================================
+// SMALL PIECES
+// ============================================================
+
+class _IconTile extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final double iconSize;
+
+  const _IconTile({
+    required this.icon,
+    required this.size,
+    required this.iconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: size,
+      width: size,
+      decoration: BoxDecoration(
+        color: _primarySoft,
+        borderRadius: BorderRadius.circular(size * 0.32),
+      ),
+      child: Icon(icon, color: _primary, size: iconSize),
+    );
+  }
+}
+
+class _NoticeBanner extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final Color background;
+  final String message;
+
+  const _NoticeBanner({
+    required this.icon,
+    required this.color,
+    required this.background,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// LOADING
+// ============================================================
+
+class _LoadingSections extends StatefulWidget {
+  const _LoadingSections();
+
+  @override
+  State<_LoadingSections> createState() => _LoadingSectionsState();
+}
+
+class _LoadingSectionsState extends State<_LoadingSections>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  late final Animation<double> opacity = Tween<double>(
+    begin: 0.55,
+    end: 1,
+  ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  Widget block({double? width, required double height, double radius = 14}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8ECF4),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
+  Widget card(int rows) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: _softShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              block(width: 40, height: 40, radius: 13),
+              const SizedBox(width: 12),
+              block(width: 120, height: 16, radius: 8),
+            ],
+          ),
+          for (var i = 0; i < rows; i++) ...[
+            const SizedBox(height: 16),
+            block(height: 54, radius: 16),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Column(children: [card(3), card(2), card(2)]);
+
+    if (MediaQuery.disableAnimationsOf(context)) return content;
+
+    return FadeTransition(opacity: opacity, child: content);
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 import '../utils/event_category_registration.dart';
 import '../utils/event_schedule_formatter.dart';
@@ -213,7 +214,7 @@ class EventDetailsSheet extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFF2563EB),
+                              color: AppColors.primary,
                               fontSize: 13,
                               fontWeight: FontWeight.w900,
                             ),
@@ -332,7 +333,7 @@ class EventDetailsSheet extends StatelessWidget {
                           : Icons.lock_outline_rounded,
                       message: availabilityMessage,
                       color: canJoin
-                          ? const Color(0xFF2563EB)
+                          ? AppColors.primary
                           : const Color(0xFF64748B),
                     ),
                     const SizedBox(height: 18),
@@ -347,9 +348,7 @@ class EventDetailsSheet extends StatelessWidget {
                 icon: Icon(canJoin ? Icons.arrow_forward_rounded : Icons.lock),
                 label: Text(actionLabel),
                 style: FilledButton.styleFrom(
-                  backgroundColor: canJoin
-                      ? const Color(0xFF2563EB)
-                      : Colors.grey,
+                  backgroundColor: canJoin ? AppColors.primary : Colors.grey,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -501,7 +500,7 @@ class _EventDetailMetaTile extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFF2563EB), size: 19),
+          Icon(icon, color: AppColors.primary, size: 19),
           const SizedBox(height: 6),
           Text(
             value,
@@ -539,7 +538,7 @@ class _EventDetailLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF2563EB), size: 20),
+        Icon(icon, color: AppColors.primary, size: 20),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -625,12 +624,12 @@ class _EventTypeDetailRow extends StatelessWidget {
             height: 32,
             width: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FF),
+              color: AppColors.primarySoft,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.route_outlined,
-              color: Color(0xFF2563EB),
+              color: AppColors.primary,
               size: 18,
             ),
           ),
@@ -737,7 +736,7 @@ class _CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = isJoined
-        ? const Color(0xFF2563EB)
+        ? AppColors.primary
         : isAvailable
         ? const Color(0xFF16A34A)
         : const Color(0xFF64748B);

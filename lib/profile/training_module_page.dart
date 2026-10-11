@@ -1,7 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../widgets/bottom_nav_bar.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THEME (soft indigo – same tokens as the rest of the app)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _primary = Color(0xFF6366F1);
+const _primaryDeep = Color(0xFF4F46E5);
+const _accent = Color(0xFF0EA5E9);
+const _primarySoft = Color(0xFFEEF2FF);
+
+const _ink = Color(0xFF1E293B);
+const _body = Color(0xFF475569);
+const _muted = Color(0xFF64748B);
+const _faint = Color(0xFF94A3B8);
+
+const _border = Color(0xFFE2E8F0);
+const _background = Color(0xFFF5F7FB);
+const _fieldFill = Color(0xFFF8FAFC);
+
+const _teal = Color(0xFF0F766E);
+const _danger = Color(0xFFEF4444);
+const _dangerSoft = Color(0xFFFEF2F2);
+
+const _softShadow = [
+  BoxShadow(color: Color(0x1F94A3B8), blurRadius: 24, offset: Offset(0, 8)),
+];
+
+const _heroGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [_primaryDeep, _primary, _accent],
+);
+
+ThemeData _brandTheme(BuildContext context) {
+  final base = Theme.of(context);
+  return base.copyWith(
+    colorScheme: base.colorScheme.copyWith(
+      primary: _primary,
+      secondary: _accent,
+      surface: Colors.white,
+      surfaceTint: Colors.transparent,
+    ),
+    textSelectionTheme: const TextSelectionThemeData(
+      cursorColor: _primary,
+      selectionColor: Color(0x336366F1),
+      selectionHandleColor: _primary,
+    ),
+    progressIndicatorTheme: const ProgressIndicatorThemeData(color: _primary),
+    popupMenuTheme: PopupMenuThemeData(
+      color: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      elevation: 10,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 
 class TrainingModulePage extends StatefulWidget {
   const TrainingModulePage({super.key});
@@ -20,30 +81,44 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
   final ScrollController modulesScrollController = ScrollController();
   bool isLoading = true;
   bool isLoadingMore = false;
+  bool loadFailed = false;
+  bool loadMoreFailed = false;
   List<Map<String, dynamic>> modules = [];
   List<String> trainingFocusTypes = [];
   String? nextTrainingModulesPageUrl;
 
   Future<void> loadTrainingModules() async {
-    final prefs = await SharedPreferences.getInstance();
-    final activities = prefs.getStringList("activities") ?? [];
-    final results = await Future.wait([
-      ApiService().getTrainingModulesPage(),
-      ApiService().getTrainingFocusTypes(),
-    ]);
-    final modulesPage = results[0] as PaginatedApiResult<Map<String, dynamic>>;
-    final focusTypes = results[1] as List<String>;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final activities = prefs.getStringList("activities") ?? [];
+      final results = await Future.wait([
+        ApiService().getTrainingModulesPage(),
+        ApiService().getTrainingFocusTypes(),
+      ]);
+      final modulesPage =
+      results[0] as PaginatedApiResult<Map<String, dynamic>>;
+      final focusTypes = results[1] as List<String>;
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    setState(() {
-      selectedActivity = activities.isNotEmpty ? activities.first : "";
-      modules = modulesPage.data;
-      nextTrainingModulesPageUrl = modulesPage.nextPageUrl;
-      trainingFocusTypes = focusTypes;
-      isLoading = false;
-      isLoadingMore = false;
-    });
+      setState(() {
+        selectedActivity = activities.isNotEmpty ? activities.first : "";
+        modules = modulesPage.data;
+        nextTrainingModulesPageUrl = modulesPage.nextPageUrl;
+        trainingFocusTypes = focusTypes;
+        isLoading = false;
+        isLoadingMore = false;
+        loadFailed = false;
+        loadMoreFailed = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        isLoading = false;
+        isLoadingMore = false;
+        loadFailed = true;
+      });
+    }
   }
 
   Future<void> loadMoreTrainingModules() async {
@@ -52,28 +127,39 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
       return;
     }
 
-    setState(() => isLoadingMore = true);
-
-    final modulesPage = await ApiService().getTrainingModulesPage(
-      pageUrl: nextPageUrl,
-    );
-
-    if (!mounted) return;
-
     setState(() {
-      final existingIds = modules
-          .map((module) => module["id"]?.toString())
-          .whereType<String>()
-          .toSet();
-      final newModules = modulesPage.data.where((module) {
-        final id = module["id"]?.toString();
-        return id == null || !existingIds.contains(id);
-      });
-
-      modules.addAll(newModules);
-      nextTrainingModulesPageUrl = modulesPage.nextPageUrl;
-      isLoadingMore = false;
+      isLoadingMore = true;
+      loadMoreFailed = false;
     });
+
+    try {
+      final modulesPage = await ApiService().getTrainingModulesPage(
+        pageUrl: nextPageUrl,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        final existingIds = modules
+            .map((module) => module["id"]?.toString())
+            .whereType<String>()
+            .toSet();
+        final newModules = modulesPage.data.where((module) {
+          final id = module["id"]?.toString();
+          return id == null || !existingIds.contains(id);
+        });
+
+        modules.addAll(newModules);
+        nextTrainingModulesPageUrl = modulesPage.nextPageUrl;
+        isLoadingMore = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        isLoadingMore = false;
+        loadMoreFailed = true;
+      });
+    }
   }
 
   void handleModulesScroll() {
@@ -84,9 +170,23 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     final position = modulesScrollController.position;
     final nearBottom = position.pixels >= position.maxScrollExtent - 500;
 
-    if (nearBottom) {
+    if (nearBottom && !loadMoreFailed) {
       loadMoreTrainingModules();
     }
+  }
+
+  /// Full reload with skeletons (used by the Refresh buttons).
+  Future<void> reloadWithSkeleton() async {
+    setState(() => isLoading = true);
+    await loadTrainingModules();
+  }
+
+  /// Pull-to-refresh keeps the current list visible while reloading.
+  Future<void> pullToRefresh() async {
+    if (modules.isEmpty) {
+      setState(() => isLoading = true);
+    }
+    await loadTrainingModules();
   }
 
   @override
@@ -225,6 +325,21 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     }
   }
 
+  IconData sortIcon(String sort) {
+    switch (sort) {
+      case "shortest":
+        return Icons.timer_outlined;
+      case "longest":
+        return Icons.hourglass_bottom_rounded;
+      case "beginner_first":
+        return Icons.trending_up_rounded;
+      case "advanced_first":
+        return Icons.trending_down_rounded;
+      default:
+        return Icons.sort_rounded;
+    }
+  }
+
   int difficultyRank(String difficulty) {
     switch (difficulty) {
       case "beginner":
@@ -250,9 +365,9 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     return modules
         .where(
           (item) =>
-              normalizedDifficulty(item["difficulty_level"]) ==
-              selectedDifficulty,
-        )
+      normalizedDifficulty(item["difficulty_level"]) ==
+          selectedDifficulty,
+    )
         .toList();
   }
 
@@ -260,8 +375,8 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     return modules
         .where(
           (item) =>
-              normalizedDifficulty(item["difficulty_level"]) == "beginner",
-        )
+      normalizedDifficulty(item["difficulty_level"]) == "beginner",
+    )
         .length;
   }
 
@@ -269,8 +384,8 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     return modules
         .where(
           (item) =>
-              normalizedDifficulty(item["difficulty_level"]) == "intermediate",
-        )
+      normalizedDifficulty(item["difficulty_level"]) == "intermediate",
+    )
         .length;
   }
 
@@ -278,8 +393,8 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     return modules
         .where(
           (item) =>
-              normalizedDifficulty(item["difficulty_level"]) == "advanced",
-        )
+      normalizedDifficulty(item["difficulty_level"]) == "advanced",
+    )
         .length;
   }
 
@@ -316,31 +431,31 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     final byType = selectedType == "all"
         ? byDifficulty
         : byDifficulty
-              .where((item) => normalizedType(moduleType(item)) == selectedType)
-              .toList();
+        .where((item) => normalizedType(moduleType(item)) == selectedType)
+        .toList();
     final query = searchQuery.trim().toLowerCase();
 
     final bySearch = query.isEmpty
         ? byType
         : byType.where((item) {
-            final title = (item["title"] ?? "").toString().toLowerCase();
-            final description = (item["description"] ?? "")
-                .toString()
-                .toLowerCase();
-            final content = (item["content"] ?? "").toString().toLowerCase();
-            final type = displayType(
-              normalizedType(moduleType(item)),
-            ).toLowerCase();
-            final difficulty = displayDifficulty(
-              normalizedDifficulty(item["difficulty_level"]),
-            ).toLowerCase();
+      final title = (item["title"] ?? "").toString().toLowerCase();
+      final description = (item["description"] ?? "")
+          .toString()
+          .toLowerCase();
+      final content = (item["content"] ?? "").toString().toLowerCase();
+      final type = displayType(
+        normalizedType(moduleType(item)),
+      ).toLowerCase();
+      final difficulty = displayDifficulty(
+        normalizedDifficulty(item["difficulty_level"]),
+      ).toLowerCase();
 
-            return title.contains(query) ||
-                description.contains(query) ||
-                content.contains(query) ||
-                type.contains(query) ||
-                difficulty.contains(query);
-          }).toList();
+      return title.contains(query) ||
+          description.contains(query) ||
+          content.contains(query) ||
+          type.contains(query) ||
+          difficulty.contains(query);
+    }).toList();
     final sorted = List<Map<String, dynamic>>.from(bySearch);
 
     switch (selectedSort) {
@@ -352,18 +467,18 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
         break;
       case "beginner_first":
         sorted.sort(
-          (a, b) => difficultyRank(normalizedDifficulty(a["difficulty_level"]))
+              (a, b) => difficultyRank(normalizedDifficulty(a["difficulty_level"]))
               .compareTo(
-                difficultyRank(normalizedDifficulty(b["difficulty_level"])),
-              ),
+            difficultyRank(normalizedDifficulty(b["difficulty_level"])),
+          ),
         );
         break;
       case "advanced_first":
         sorted.sort(
-          (a, b) => difficultyRank(normalizedDifficulty(b["difficulty_level"]))
+              (a, b) => difficultyRank(normalizedDifficulty(b["difficulty_level"]))
               .compareTo(
-                difficultyRank(normalizedDifficulty(a["difficulty_level"])),
-              ),
+            difficultyRank(normalizedDifficulty(a["difficulty_level"])),
+          ),
         );
         break;
     }
@@ -372,10 +487,12 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
   }
 
   void selectDifficulty(String difficulty) {
+    HapticFeedback.selectionClick();
     setState(() => selectedDifficulty = difficulty);
   }
 
   void selectType(String type) {
+    HapticFeedback.selectionClick();
     setState(() => selectedType = type);
   }
 
@@ -395,6 +512,7 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
 
   void clearFilters() {
     searchController.clear();
+    FocusScope.of(context).unfocus();
     setState(() {
       selectedDifficulty = "all";
       selectedType = "all";
@@ -443,6 +561,28 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     return "No ${displayDifficulty(selectedDifficulty).toLowerCase()} modules";
   }
 
+  void openModuleDetails(Map<String, dynamic> module) {
+    FocusScope.of(context).unfocus();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Theme(
+        data: _brandTheme(context),
+        child: _TrainingModuleDetailsSheet(
+          module: module,
+          displayDifficulty: displayDifficulty,
+          difficultyColor: difficultyColor,
+          typeIcon: typeIcon,
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // MODULE CARD
+  // ───────────────────────────────────────────────────────────────────────────
+
   Widget moduleCard(Map<String, dynamic> module) {
     final title = (module["title"] ?? "Untitled Module").toString();
     final description = (module["description"] ?? "").toString();
@@ -452,149 +592,942 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     final difficulty = normalizedDifficulty(module["difficulty_level"]);
     final duration = module["duration"];
     final color = difficultyColor(difficulty);
+    final preview = description.isNotEmpty ? description : content;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        boxShadow: _softShadow,
       ),
-      child: InkWell(
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(22),
-        onTap: () {
-          showModalBottomSheet(
-            context: context,
-            showDragHandle: true,
-            isScrollControlled: true,
-            backgroundColor: Colors.white,
-            builder: (_) => _TrainingModuleDetailsSheet(
-              module: module,
-              displayDifficulty: displayDifficulty,
-              difficultyColor: difficultyColor,
-              typeIcon: typeIcon,
-            ),
-          );
-        },
-        child: Row(
-          children: [
-            Container(
-              height: 58,
-              width: 58,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(typeIcon(type), color: color, size: 30),
-            ),
-
-            const SizedBox(width: 14),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF111827),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => openModuleDetails(module),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Difficulty strip
+                Container(width: 5, color: color),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          height: 54,
+                          width: 54,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(17),
+                            border: Border.all(
+                              color: color.withValues(alpha: 0.18),
+                            ),
+                          ),
+                          child: Icon(typeIcon(type), color: color, size: 27),
+                        ),
+                        const SizedBox(width: 13),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: _ink,
+                                  height: 1.25,
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                              if (preview.isNotEmpty) ...[
+                                const SizedBox(height: 5),
+                                Text(
+                                  preview,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: _body,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 11),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _MiniChip(
+                                    icon: Icons.signal_cellular_alt_rounded,
+                                    label: displayDifficulty(difficulty),
+                                    color: color,
+                                  ),
+                                  if (duration != null)
+                                    _MiniChip(
+                                      icon: Icons.timer_outlined,
+                                      label: "$duration min",
+                                      color: _primary,
+                                    ),
+                                  if (type.isNotEmpty)
+                                    _MiniChip(
+                                      icon: Icons.category_outlined,
+                                      label: displayType(type),
+                                      color: _muted,
+                                    ),
+                                  _MiniChip(
+                                    icon: Icons.local_offer_outlined,
+                                    label: interestType.isEmpty
+                                        ? "General"
+                                        : displayLabel(interestType),
+                                    color: _teal,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          height: 30,
+                          width: 30,
+                          decoration: BoxDecoration(
+                            color: _fieldFill,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: _border),
+                          ),
+                          child: const Icon(
+                            Icons.chevron_right_rounded,
+                            color: _faint,
+                            size: 20,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  if (description.isNotEmpty)
-                    Text(
-                      description,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF475569),
-                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // HEADER
+  // ───────────────────────────────────────────────────────────────────────────
+
+  Widget _buildHero() {
+    final topInset = MediaQuery.paddingOf(context).top;
+    final hasMore = nextTrainingModulesPageUrl != null;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 64),
+      decoration: const BoxDecoration(
+        gradient: _heroGradient,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          isLoading
+                              ? "–"
+                              : "${modules.length}${hasMore ? '+' : ''}",
+                          style: const TextStyle(
+                            fontSize: 44,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            height: 1,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 5),
+                          child: Text(
+                            "Training Modules",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _miniChip(
-                        icon: Icons.signal_cellular_alt_rounded,
-                        label: displayDifficulty(difficulty),
-                        color: color,
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 6,
                       ),
-                      if (duration != null)
-                        _miniChip(
-                          icon: Icons.timer_outlined,
-                          label: "$duration min",
-                          color: const Color(0xFF2563EB),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.22),
                         ),
-                      if (type.isNotEmpty)
-                        _miniChip(
-                          icon: Icons.category_outlined,
-                          label: displayType(type),
-                          color: const Color(0xFF64748B),
-                        ),
-                      _miniChip(
-                        icon: Icons.local_offer_outlined,
-                        label: interestType.isEmpty
-                            ? "General"
-                            : displayLabel(interestType),
-                        color: const Color(0xFF0F766E),
                       ),
-                    ],
-                  ),
-                  if (content.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      content,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF475569),
-                        height: 1.35,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            selectedActivity.isEmpty
+                                ? Icons.auto_awesome_rounded
+                                : Icons.my_location_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              selectedActivity.isEmpty
+                                  ? "Preparing your training plan"
+                                  : "Focused on $selectedActivity",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
-                ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                height: 56,
+                width: 56,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.28),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.school_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _buildSearchField(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDifficultyTiles() {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2E6366F1),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _DifficultyTile(
+              label: "All",
+              value: isLoading ? "–" : "${modules.length}",
+              color: _primary,
+              isSelected: selectedDifficulty == "all",
+              onTap: () => selectDifficulty("all"),
+            ),
+          ),
+          Expanded(
+            child: _DifficultyTile(
+              label: "Beginner",
+              value: isLoading ? "–" : "$beginnerCount",
+              color: const Color(0xFF22C55E),
+              isSelected: selectedDifficulty == "beginner",
+              onTap: () => selectDifficulty("beginner"),
+            ),
+          ),
+          Expanded(
+            child: _DifficultyTile(
+              label: "Intermediate",
+              value: isLoading ? "–" : "$intermediateCount",
+              color: const Color(0xFFF59E0B),
+              isSelected: selectedDifficulty == "intermediate",
+              onTap: () => selectDifficulty("intermediate"),
+            ),
+          ),
+          Expanded(
+            child: _DifficultyTile(
+              label: "Advanced",
+              value: isLoading ? "–" : "$advancedCount",
+              color: const Color(0xFFEF4444),
+              isSelected: selectedDifficulty == "advanced",
+              onTap: () => selectDifficulty("advanced"),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeFilters() {
+    final availableTypes = availableTrainingTypes;
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        children: [
+          _TypeChip(
+            icon: Icons.apps_rounded,
+            label: "All Types",
+            count: typeCount("all"),
+            isSelected: selectedType == "all",
+            onTap: () => selectType("all"),
+          ),
+          ...availableTypes.map(
+                (type) => _TypeChip(
+              icon: typeIcon(type),
+              label: displayType(type),
+              count: typeCount(type),
+              isSelected: selectedType == type,
+              onTap: () => selectType(type),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: searchController,
+      onChanged: updateSearchQuery,
+      textInputAction: TextInputAction.search,
+      onSubmitted: (_) => FocusScope.of(context).unfocus(),
+      decoration: InputDecoration(
+        hintText: "Search training modules",
+        hintStyle: const TextStyle(
+          color: _faint,
+          fontWeight: FontWeight.w600,
+        ),
+        prefixIcon: const Icon(Icons.search_rounded, color: _muted),
+        suffixIcon: searchQuery.trim().isEmpty
+            ? null
+            : IconButton(
+          tooltip: "Clear search",
+          onPressed: () {
+            searchController.clear();
+            updateSearchQuery("");
+          },
+          icon: const Icon(Icons.close_rounded, color: _muted),
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: const BorderSide(color: Color(0xFFC7D2FE), width: 2),
+        ),
+      ),
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: _ink,
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _sortMenuItem(String value) {
+    final isSelected = selectedSort == value;
+
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Container(
+            height: 30,
+            width: 30,
+            decoration: BoxDecoration(
+              color: isSelected ? _primarySoft : _fieldFill,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              sortIcon(value),
+              size: 16,
+              color: isSelected ? _primary : _muted,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              displaySort(value),
+              style: TextStyle(
+                color: isSelected ? _primaryDeep : _ink,
+                fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
               ),
             ),
+          ),
+          if (isSelected)
+            const Icon(Icons.check_rounded, size: 18, color: _primary),
+        ],
+      ),
+    );
+  }
 
-            const SizedBox(width: 10),
+  Widget _buildSortMenu() {
+    final isDefault = selectedSort == "default";
 
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B)),
+    return PopupMenuButton<String>(
+      tooltip: "Sort modules",
+      initialValue: selectedSort,
+      onSelected: selectSort,
+      position: PopupMenuPosition.under,
+      itemBuilder: (context) => [
+        _sortMenuItem("default"),
+        _sortMenuItem("shortest"),
+        _sortMenuItem("longest"),
+        _sortMenuItem("beginner_first"),
+        _sortMenuItem("advanced_first"),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDefault ? Colors.white : _primarySoft,
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(
+            color: isDefault ? _border : const Color(0xFFC7D2FE),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              sortIcon(selectedSort),
+              size: 16,
+              color: isDefault ? _muted : _primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              isDefault ? "Sort" : displaySort(selectedSort),
+              style: TextStyle(
+                color: isDefault ? _muted : _primaryDeep,
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _miniChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
+  Widget _buildResultsHeader(int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 16, 12),
+      child: Row(
+        children: [
+          Flexible(
+            child: Text(
+              activeModuleTitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 16.5,
+                fontWeight: FontWeight.w900,
+                color: _ink,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          _CountBadge(count: count),
+          const Spacer(),
+          if (hasActiveFilters) ...[
+            TextButton.icon(
+              onPressed: clearFilters,
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                foregroundColor: _primary,
+              ),
+              icon: const Icon(Icons.close_rounded, size: 16),
+              label: const Text(
+                "Clear",
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          _buildSortMenu(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListFooter() {
+    if (isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 18),
+        child: Center(
+          child: SizedBox(
+            height: 26,
+            width: 26,
+            child: CircularProgressIndicator(strokeWidth: 2.6),
+          ),
+        ),
+      );
+    }
+
+    if (nextTrainingModulesPageUrl != null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 4, 0, 8),
+        child: Column(
+          children: [
+            if (loadMoreFailed)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  "Couldn't load more modules.",
+                  style: TextStyle(
+                    color: _danger,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            OutlinedButton.icon(
+              onPressed: loadMoreTrainingModules,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _primary,
+                side: const BorderSide(color: Color(0xFFC7D2FE)),
+                backgroundColor: Colors.white,
+                minimumSize: const Size(170, 44),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: Icon(
+                loadMoreFailed
+                    ? Icons.refresh_rounded
+                    : Icons.expand_more_rounded,
+                size: 20,
+              ),
+              label: Text(
+                loadMoreFailed ? "Try again" : "Load more modules",
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 14),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.check_circle_outline_rounded, size: 16, color: _faint),
+          SizedBox(width: 6),
+          Text(
+            "You've seen all modules",
+            style: TextStyle(
+              color: _faint,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildContentSlivers() {
+    if (isLoading) {
+      return [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+          sliver: SliverList.builder(
+            itemCount: 4,
+            itemBuilder: (context, index) => const _SkeletonCard(),
+          ),
+        ),
+      ];
+    }
+
+    if (modules.isEmpty) {
+      return [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: loadFailed
+              ? _StateCard(
+            icon: Icons.wifi_off_rounded,
+            iconColor: _danger,
+            iconBackground: _dangerSoft,
+            title: "Couldn't load modules",
+            message: "Check your connection and try again.",
+            actionLabel: "Try again",
+            actionIcon: Icons.refresh_rounded,
+            onAction: reloadWithSkeleton,
+          )
+              : _StateCard(
+            icon: Icons.school_outlined,
+            iconColor: _primary,
+            iconBackground: _primarySoft,
+            title: "No training modules yet",
+            message: "Training modules will appear here once available.",
+            actionLabel: "Refresh",
+            actionIcon: Icons.refresh_rounded,
+            onAction: reloadWithSkeleton,
+          ),
+        ),
+      ];
+    }
+
+    final visibleModules = filteredModules;
+
+    return [
+      if (loadFailed)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: _RefreshErrorBanner(onRetry: pullToRefresh),
+          ),
+        ),
+      SliverToBoxAdapter(child: _buildResultsHeader(visibleModules.length)),
+      if (visibleModules.isEmpty)
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _StateCard(
+            icon: Icons.filter_alt_off_outlined,
+            iconColor: _primary,
+            iconBackground: _primarySoft,
+            title: emptyFilterTitle,
+            message: "Try another filter or view all training modules.",
+            actionLabel: "Clear filters",
+            actionIcon: Icons.close_rounded,
+            onAction: () async {
+              clearFilters();
+            },
+            topPadding: 0,
+          ),
+        )
+      else ...[
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          sliver: SliverList.builder(
+            itemCount: visibleModules.length,
+            itemBuilder: (context, index) => moduleCard(visibleModules[index]),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: _buildListFooter(),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
+    return Theme(
+      data: _brandTheme(context),
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: _background,
+          bottomNavigationBar: isKeyboardOpen
+              ? null
+              : const AppBottomNavBar(currentPage: AppNavPage.training),
+          body: RefreshIndicator(
+            color: _primary,
+            backgroundColor: Colors.white,
+            edgeOffset: MediaQuery.paddingOf(context).top,
+            onRefresh: pullToRefresh,
+            child: CustomScrollView(
+              controller: modulesScrollController,
+              keyboardDismissBehavior:
+              ScrollViewKeyboardDismissBehavior.onDrag,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 40),
+                        child: _buildHero(),
+                      ),
+                      Positioned(
+                        left: 16,
+                        right: 16,
+                        bottom: 0,
+                        child: _buildDifficultyTiles(),
+                      ),
+                    ],
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+                SliverToBoxAdapter(child: _buildTypeFilters()),
+                ..._buildContentSlivers(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SMALL WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DifficultyTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _DifficultyTile({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? color.withValues(alpha: 0.12)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isSelected
+                    ? color.withValues(alpha: 0.45)
+                    : Colors.transparent,
+                width: 1.4,
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: isSelected ? color : _muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final int count;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _TypeChip({
+    required this.icon,
+    required this.label,
+    required this.count,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Semantics(
+        selected: isSelected,
+        button: true,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(99),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
+              decoration: BoxDecoration(
+                gradient: isSelected ? _heroGradient : null,
+                color: isSelected ? null : Colors.white,
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(
+                  color: isSelected ? Colors.transparent : _border,
+                ),
+                boxShadow: isSelected
+                    ? const [
+                  BoxShadow(
+                    color: Color(0x336366F1),
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon,
+                    size: 16,
+                    color: isSelected ? Colors.white : _muted,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : _body,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 22),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.22)
+                          : _fieldFill,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      "$count",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: isSelected ? Colors.white : _muted,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _MiniChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.09),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
+          Icon(icon, size: 13, color: color),
           const SizedBox(width: 4),
           Text(
             label,
@@ -608,550 +1541,210 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
       ),
     );
   }
+}
 
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        const SizedBox(height: 12),
+class _CountBadge extends StatelessWidget {
+  final int count;
 
-        const SizedBox(height: 20),
+  const _CountBadge({required this.count});
 
-        Text(
-          "${modules.length}",
-          style: const TextStyle(
-            fontSize: 64,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF111827),
-            height: 1,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        const Text(
-          "Training Modules",
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF4B5563),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        Text(
-          selectedActivity.isEmpty
-              ? "Preparing your training plan"
-              : "Focused on $selectedActivity",
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF64748B),
-          ),
-        ),
-
-        const SizedBox(height: 26),
-
-        Row(
-          children: [
-            Expanded(
-              child: _statCard(
-                label: "All",
-                value: "${modules.length}",
-                color: const Color(0xFF2563EB),
-                isSelected: selectedDifficulty == "all",
-                onTap: () => selectDifficulty("all"),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _statCard(
-                label: "Beginner",
-                value: "$beginnerCount",
-                color: const Color(0xFF22C55E),
-                isSelected: selectedDifficulty == "beginner",
-                onTap: () => selectDifficulty("beginner"),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _statCard(
-                label: "Intermediate",
-                value: "$intermediateCount",
-                color: const Color(0xFFF59E0B),
-                isSelected: selectedDifficulty == "intermediate",
-                onTap: () => selectDifficulty("intermediate"),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _statCard(
-                label: "Advanced",
-                value: "$advancedCount",
-                color: const Color(0xFFEF4444),
-                isSelected: selectedDifficulty == "advanced",
-                onTap: () => selectDifficulty("advanced"),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _statCard({
-    required String label,
-    required String value,
-    required Color color,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isSelected ? color : Colors.transparent,
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: isSelected ? color : const Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: _primarySoft,
+        borderRadius: BorderRadius.circular(99),
       ),
-    );
-  }
-
-  Widget _typeFilterChip({
-    required String type,
-    required String label,
-    required int count,
-  }) {
-    final isSelected = selectedType == type;
-    final color = isSelected
-        ? const Color(0xFF2563EB)
-        : const Color(0xFF64748B);
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        selected: isSelected,
-        showCheckmark: false,
-        label: Text("$label ($count)"),
-        avatar: Icon(
-          type == "all" ? Icons.category_outlined : typeIcon(type),
-          size: 16,
-          color: isSelected ? Colors.white : color,
-        ),
-        labelStyle: TextStyle(
-          color: isSelected ? Colors.white : const Color(0xFF334155),
-          fontWeight: FontWeight.w800,
+      child: Text(
+        '$count',
+        style: const TextStyle(
+          color: _primary,
           fontSize: 12,
-        ),
-        selectedColor: const Color(0xFF2563EB),
-        backgroundColor: Colors.white,
-        side: BorderSide(
-          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(99)),
-        onSelected: (_) => selectType(type),
-      ),
-    );
-  }
-
-  Widget _buildTypeFilters() {
-    final availableTypes = availableTrainingTypes;
-
-    return SizedBox(
-      height: 42,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        children: [
-          _typeFilterChip(
-            type: "all",
-            label: "All Types",
-            count: typeCount("all"),
-          ),
-          ...availableTypes.map(
-            (type) => _typeFilterChip(
-              type: type,
-              label: displayType(type),
-              count: typeCount(type),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchField() {
-    return TextField(
-      controller: searchController,
-      onChanged: updateSearchQuery,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: "Search training modules",
-        prefixIcon: const Icon(Icons.search_rounded),
-        suffixIcon: searchQuery.trim().isEmpty
-            ? null
-            : IconButton(
-                onPressed: () {
-                  searchController.clear();
-                  updateSearchQuery("");
-                },
-                icon: const Icon(Icons.close_rounded),
-              ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.4),
-        ),
-      ),
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: Color(0xFF111827),
-      ),
-    );
-  }
-
-  PopupMenuItem<String> _sortMenuItem(String value) {
-    final isSelected = selectedSort == value;
-
-    return PopupMenuItem<String>(
-      value: value,
-      child: Row(
-        children: [
-          Icon(
-            isSelected ? Icons.check_rounded : Icons.sort_rounded,
-            size: 18,
-            color: isSelected
-                ? const Color(0xFF2563EB)
-                : const Color(0xFF64748B),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            displaySort(value),
-            style: TextStyle(
-              color: isSelected
-                  ? const Color(0xFF2563EB)
-                  : const Color(0xFF111827),
-              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSortMenu() {
-    return PopupMenuButton<String>(
-      tooltip: "Sort modules",
-      initialValue: selectedSort,
-      onSelected: selectSort,
-      itemBuilder: (context) => [
-        _sortMenuItem("default"),
-        _sortMenuItem("shortest"),
-        _sortMenuItem("longest"),
-        _sortMenuItem("beginner_first"),
-        _sortMenuItem("advanced_first"),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
-        decoration: BoxDecoration(
-          color: selectedSort == "default"
-              ? Colors.white
-              : const Color(0xFFEAF2FF),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(
-            color: selectedSort == "default"
-                ? const Color(0xFFE2E8F0)
-                : const Color(0xFFBFDBFE),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.sort_rounded,
-              size: 16,
-              color: selectedSort == "default"
-                  ? const Color(0xFF64748B)
-                  : const Color(0xFF2563EB),
-            ),
-            const SizedBox(width: 5),
-            Text(
-              "Sort",
-              style: TextStyle(
-                color: selectedSort == "default"
-                    ? const Color(0xFF64748B)
-                    : const Color(0xFF2563EB),
-                fontWeight: FontWeight.w900,
-                fontSize: 12,
-              ),
-            ),
-          ],
+          fontWeight: FontWeight.w900,
         ),
       ),
     );
   }
+}
 
-  Widget loadingState() {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 20),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          height: 120,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: const Center(child: CircularProgressIndicator()),
-        );
-      },
-    );
-  }
+class _Pulse extends StatefulWidget {
+  final Widget child;
 
-  Widget emptyState({
-    String title = "No training modules yet",
-    String message = "Training modules will appear here once available.",
-    IconData icon = Icons.school_outlined,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 54, color: const Color(0xFF2563EB)),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Color(0xFF64748B), height: 1.35),
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: () async {
-                  setState(() => isLoading = true);
-                  await loadTrainingModules();
-                },
-                icon: const Icon(Icons.refresh),
-                label: const Text("Refresh"),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  const _Pulse({required this.child});
 
-  Widget _buildContent() {
-    if (isLoading) {
-      return loadingState();
-    }
+  @override
+  State<_Pulse> createState() => _PulseState();
+}
 
-    if (modules.isEmpty) {
-      return emptyState();
-    }
+class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
 
-    final visibleModules = filteredModules;
+  late final Animation<double> _opacity = Tween<double>(
+    begin: 0.45,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
-    if (visibleModules.isEmpty) {
-      return emptyState(
-        title: emptyFilterTitle,
-        message: "Try another filter or view all training modules.",
-        icon: Icons.filter_alt_off_outlined,
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        setState(() => isLoading = true);
-        await loadTrainingModules();
-      },
-      child: ListView.builder(
-        controller: modulesScrollController,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
-        padding: EdgeInsets.zero,
-        itemCount: visibleModules.length + (isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index >= visibleModules.length) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          return moduleCard(visibleModules[index]);
-        },
-      ),
-    );
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
+    return FadeTransition(opacity: _opacity, child: widget.child);
+  }
+}
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFEFF3F9),
-      bottomNavigationBar: isKeyboardOpen
-          ? null
-          : const AppBottomNavBar(currentPage: AppNavPage.training),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: [
-              if (isKeyboardOpen)
-                const SizedBox(height: 12)
-              else ...[
-                _buildHeader(),
-                const SizedBox(height: 24),
-              ],
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
 
-              _buildTypeFilters(),
+  @override
+  Widget build(BuildContext context) {
+    Widget block(double h, double w, double r) => Container(
+      height: h,
+      width: w,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE9EDF5),
+        borderRadius: BorderRadius.circular(r),
+      ),
+    );
 
-              const SizedBox(height: 12),
-
-              _buildSearchField(),
-
-              const SizedBox(height: 18),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: _softShadow,
+      ),
+      child: _Pulse(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            block(54, 54, 17),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      activeModuleTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF111827),
-                      ),
-                    ),
+                  block(15, double.infinity, 8),
+                  const SizedBox(height: 8),
+                  block(12, 200, 8),
+                  const SizedBox(height: 6),
+                  block(12, 150, 8),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      block(22, 70, 99),
+                      const SizedBox(width: 6),
+                      block(22, 56, 99),
+                      const SizedBox(width: 6),
+                      block(22, 64, 99),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  if (hasActiveFilters) ...[
-                    TextButton.icon(
-                      onPressed: clearFilters,
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        foregroundColor: const Color(0xFF2563EB),
-                      ),
-                      icon: const Icon(Icons.close_rounded, size: 16),
-                      label: const Text(
-                        "Clear",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Text(
-                    "${filteredModules.length}",
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildSortMenu(),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
+class _StateCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBackground;
+  final String title;
+  final String message;
+  final String actionLabel;
+  final IconData actionIcon;
+  final Future<void> Function() onAction;
+  final double topPadding;
+
+  const _StateCard({
+    required this.icon,
+    required this.iconColor,
+    required this.iconBackground,
+    required this.title,
+    required this.message,
+    required this.actionLabel,
+    required this.actionIcon,
+    required this.onAction,
+    this.topPadding = 20,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, topPadding, 16, 24),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: _softShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 68,
+                width: 68,
+                decoration: BoxDecoration(
+                  color: iconBackground,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: iconColor, size: 32),
+              ),
               const SizedBox(height: 14),
-
-              Expanded(child: _buildContent()),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _muted,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: onAction,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(160, 46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: Icon(actionIcon, size: 19),
+                label: Text(
+                  actionLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
             ],
           ),
         ),
@@ -1159,6 +1752,52 @@ class _TrainingModulePageState extends State<TrainingModulePage> {
     );
   }
 }
+
+class _RefreshErrorBanner extends StatelessWidget {
+  final Future<void> Function() onRetry;
+
+  const _RefreshErrorBanner({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: _dangerSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFECACA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, color: _danger, size: 18),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              "Couldn't refresh. Showing the last loaded modules.",
+              style: TextStyle(
+                color: Color(0xFF991B1B),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: _danger),
+            child: const Text(
+              "Retry",
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DETAILS SHEET
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TrainingModuleDetailsSheet extends StatelessWidget {
   final Map<String, dynamic> module;
@@ -1239,10 +1878,17 @@ class _TrainingModuleDetailsSheet extends StatelessWidget {
         .toLowerCase();
     final duration = module["duration"];
     final color = difficultyColor(difficulty);
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.88;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1252,84 +1898,176 @@ class _TrainingModuleDetailsSheet extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const SizedBox(height: 4),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 72,
-                          width: 72,
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Icon(typeIcon(type), color: color, size: 38),
+                    // Header band
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 22),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            color.withValues(alpha: 0.14),
+                            Colors.white,
+                          ],
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Center(
+                            child: Container(
+                              width: 40,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: _border,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                title,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF111827),
-                                  height: 1.12,
+                              Container(
+                                height: 64,
+                                width: 64,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: color.withValues(alpha: 0.3),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: color.withValues(alpha: 0.18),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  typeIcon(type),
+                                  color: color,
+                                  size: 32,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      displayType(type).toUpperCase(),
+                                      style: TextStyle(
+                                        color: color,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontSize: 21,
+                                        fontWeight: FontWeight.w900,
+                                        color: _ink,
+                                        height: 1.2,
+                                        letterSpacing: -0.3,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _DetailMetaRow(
-                      difficulty: displayDifficulty(difficulty),
-                      difficultyColor: color,
-                      type: displayType(type),
-                      interestType: interestType.isEmpty
-                          ? "General"
-                          : displayLabel(interestType),
-                      duration: duration,
-                    ),
-                    if (description.isNotEmpty) ...[
-                      const SizedBox(height: 18),
-                      _DetailSection(title: "Overview", text: description),
-                    ],
-                    if (content.isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      _DetailSection(title: "Details", text: content),
-                    ],
-                    if (description.isEmpty && content.isEmpty) ...[
-                      const SizedBox(height: 18),
-                      const _DetailSection(
-                        title: "Details",
-                        text:
-                            "No additional training details are available yet.",
+                        ],
                       ),
-                    ],
-                    const SizedBox(height: 18),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _DetailMetaRow(
+                            difficulty: displayDifficulty(difficulty),
+                            difficultyColor: color,
+                            type: displayType(type),
+                            interestType: interestType.isEmpty
+                                ? "General"
+                                : displayLabel(interestType),
+                            duration: duration,
+                          ),
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            _DetailSection(
+                              icon: Icons.notes_rounded,
+                              title: "Overview",
+                              text: description,
+                            ),
+                          ],
+                          if (content.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            _DetailSection(
+                              icon: Icons.article_outlined,
+                              title: "Details",
+                              text: content,
+                            ),
+                          ],
+                          if (description.isEmpty && content.isEmpty) ...[
+                            const SizedBox(height: 16),
+                            const _DetailSection(
+                              icon: Icons.article_outlined,
+                              title: "Details",
+                              text:
+                              "No additional training details are available yet.",
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: _border)),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: _heroGradient,
                     borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x406366F1),
+                        blurRadius: 14,
+                        offset: Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ),
-                child: const Text(
-                  "Done",
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.pop(context),
+                      child: const Center(
+                        child: Text(
+                          "Done",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1375,7 +2113,7 @@ class _DetailMetaRow extends StatelessWidget {
                 label: "Type",
                 value: type,
                 icon: Icons.category_outlined,
-                color: const Color(0xFF64748B),
+                color: _muted,
               ),
             ),
             const SizedBox(width: 10),
@@ -1384,17 +2122,47 @@ class _DetailMetaRow extends StatelessWidget {
                 label: "Time",
                 value: duration == null ? "Open" : "$duration min",
                 icon: Icons.timer_outlined,
-                color: const Color(0xFF2563EB),
+                color: _primary,
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        _DetailMetaTile(
-          label: "Interest",
-          value: interestType,
-          icon: Icons.local_offer_outlined,
-          color: const Color(0xFF0F766E),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: _teal.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _teal.withValues(alpha: 0.14)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.local_offer_outlined, color: _teal, size: 18),
+              const SizedBox(width: 10),
+              const Text(
+                "Interest",
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  interestType,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: _teal,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1419,7 +2187,7 @@ class _DetailMetaTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.09),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.14)),
       ),
@@ -1434,7 +2202,7 @@ class _DetailMetaTile extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 12.5,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -1444,7 +2212,7 @@ class _DetailMetaTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF64748B),
+              color: _muted,
               fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
@@ -1456,38 +2224,57 @@ class _DetailMetaTile extends StatelessWidget {
 }
 
 class _DetailSection extends StatelessWidget {
+  final IconData icon;
   final String title;
   final String text;
 
-  const _DetailSection({required this.title, required this.text});
+  const _DetailSection({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _fieldFill,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF111827),
-            ),
+          Row(
+            children: [
+              Container(
+                height: 30,
+                width: 30,
+                decoration: BoxDecoration(
+                  color: _primarySoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _primary, size: 17),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: FontWeight.w900,
+                  color: _ink,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Text(
+          const SizedBox(height: 10),
+          SelectableText(
             text,
             style: const TextStyle(
-              color: Color(0xFF475569),
+              color: _body,
               fontSize: 14,
-              height: 1.48,
+              height: 1.55,
               fontWeight: FontWeight.w500,
             ),
           ),

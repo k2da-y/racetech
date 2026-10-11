@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../profile/my_activity_page.dart';
 import '../services/api_service.dart';
 
@@ -132,7 +133,7 @@ class _NotificationDialogState extends State<NotificationDialog> {
       case "comment":
       case "community_comment":
       case "post_comment":
-        return const Color(0xFF2563EB);
+        return AppColors.primary;
       case "like":
       case "community_like":
       case "post_like":
@@ -140,7 +141,7 @@ class _NotificationDialogState extends State<NotificationDialog> {
       case "event":
         return const Color(0xFFF59E0B);
       case "payment":
-        return const Color(0xFF2563EB);
+        return AppColors.primary;
       case "announcement":
         return const Color(0xFF22C55E);
       default:
@@ -333,7 +334,7 @@ class _NotificationTabButton extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF2563EB) : Colors.transparent,
+            color: selected ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),
           alignment: Alignment.center,
@@ -382,7 +383,7 @@ class _DialogHeader extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(Icons.notifications_none, color: Color(0xFF2563EB)),
+          child: const Icon(Icons.notifications_none, color: AppColors.primary),
         ),
 
         const SizedBox(width: 12),
@@ -673,7 +674,7 @@ class NotificationDetailDialog extends StatelessWidget {
       case "comment":
       case "community_comment":
       case "post_comment":
-        return const Color(0xFF2563EB);
+        return AppColors.primary;
       case "like":
       case "community_like":
       case "post_like":
@@ -681,7 +682,7 @@ class NotificationDetailDialog extends StatelessWidget {
       case "event":
         return const Color(0xFFF59E0B);
       case "payment":
-        return const Color(0xFF2563EB);
+        return AppColors.primary;
       case "announcement":
         return const Color(0xFF22C55E);
       default:
@@ -863,7 +864,7 @@ class _EmptyNotificationState extends StatelessWidget {
             const Icon(
               Icons.notifications_off_outlined,
               size: 52,
-              color: Color(0xFF2563EB),
+              color: AppColors.primary,
             ),
             const SizedBox(height: 14),
             Text(

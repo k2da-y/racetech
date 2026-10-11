@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../utils/registration_group.dart';
 import '../widgets/registration_group_page.dart';
 import 'package:image_picker/image_picker.dart';
@@ -15,6 +16,80 @@ import '../utils/registration_certificate.dart';
 import '../widgets/category_checkpoint_map.dart';
 import '../widgets/event_feedback_sheet.dart';
 import '../widgets/registration_certificate_card.dart';
+
+// ============================================================
+// RACETECH DESIGN SYSTEM — soft indigo (same as Profile pages)
+// ============================================================
+
+const Color _primary = Color(0xFF6366F1); // indigo-500
+const Color _primaryDeep = Color(0xFF4F46E5); // indigo-600
+const Color _accent = Color(0xFF0EA5E9); // sky-500
+const Color _primarySoft = Color(0xFFEEF2FF); // indigo-50
+const Color _primaryBorder = Color(0xFFC7D2FE); // indigo-200
+const Color _ink = Color(0xFF1E293B);
+const Color _body = Color(0xFF475569);
+const Color _muted = Color(0xFF64748B);
+const Color _faint = Color(0xFF94A3B8);
+const Color _border = Color(0xFFE2E8F0);
+const Color _background = Color(0xFFF5F7FB);
+const Color _fieldFill = Color(0xFFF8FAFC);
+
+const List<BoxShadow> _softShadow = [
+  BoxShadow(color: Color(0x1F94A3B8), blurRadius: 24, offset: Offset(0, 8)),
+];
+
+const OutlineInputBorder _roundedField = OutlineInputBorder(
+  borderRadius: BorderRadius.all(Radius.circular(16)),
+);
+
+/// Keeps buttons, inputs and focus colors in sheets on the indigo palette,
+/// whatever the app-wide theme is.
+ThemeData _brandTheme(BuildContext context) {
+  final base = Theme.of(context);
+  final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(16));
+
+  return base.copyWith(
+    colorScheme: base.colorScheme.copyWith(
+      primary: _primary,
+      onPrimary: Colors.white,
+      secondaryContainer: _primarySoft,
+      onSecondaryContainer: _primaryDeep,
+      surfaceTint: Colors.transparent,
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: _primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        shape: shape,
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _primary,
+        side: const BorderSide(color: _border),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: shape,
+        textStyle: const TextStyle(fontWeight: FontWeight.w800),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(foregroundColor: _primary),
+    ),
+  );
+}
+
+/// "checked_in" → "Checked In", "pending" → "Pending".
+String _prettyStatus(String value) {
+  final cleaned = value.trim().replaceAll(RegExp(r"[_\-]+"), " ");
+  if (cleaned.isEmpty) return "Pending";
+  return cleaned
+      .split(" ")
+      .where((word) => word.isNotEmpty)
+      .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+      .join(" ");
+}
 
 class MyActivityPage extends StatefulWidget {
   const MyActivityPage({super.key});
@@ -44,22 +119,36 @@ class _MyActivityPageState extends State<MyActivityPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from PayMongo / email etc. — refresh quietly.
     if (state == AppLifecycleState.resumed && !isLoading) {
       loadActivity();
     }
   }
 
+  /// Prevents overlapping reloads (e.g. resume + pull-to-refresh at once).
+  bool isFetching = false;
+
   Future<void> loadActivity() async {
-    final loadedRegistrations = await ApiService().getMyRegistrations();
-    final loadedResults = await ApiService().getMyResults();
+    if (isFetching) return;
+    isFetching = true;
 
-    if (!mounted) return;
+    try {
+      // Same two calls as before, now fetched in parallel.
+      final responses = await Future.wait([
+        ApiService().getMyRegistrations(),
+        ApiService().getMyResults(),
+      ]);
 
-    setState(() {
-      registrations = loadedRegistrations;
-      results = loadedResults;
-      isLoading = false;
-    });
+      if (!mounted) return;
+
+      setState(() {
+        registrations = responses[0];
+        results = responses[1];
+        isLoading = false;
+      });
+    } finally {
+      isFetching = false;
+    }
   }
 
   Future<void> refreshActivity() async {
@@ -95,7 +184,13 @@ class _MyActivityPageState extends State<MyActivityPage>
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: Colors.white,
-      builder: (_) => _ActivityPaymentProofSheet(registration: registration),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => Theme(
+        data: _brandTheme(sheetContext),
+        child: _ActivityPaymentProofSheet(registration: registration),
+      ),
     );
 
     if (!mounted || updated != true) return;
@@ -105,9 +200,9 @@ class _MyActivityPageState extends State<MyActivityPage>
 
   Future<void> openFeedbackSheet(Map<String, dynamic> registration) async {
     final registrationId =
-        (registration["id"] ?? registration["registration_id"] ?? "")
-            .toString()
-            .trim();
+    (registration["id"] ?? registration["registration_id"] ?? "")
+        .toString()
+        .trim();
     if (registrationId.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -120,20 +215,26 @@ class _MyActivityPageState extends State<MyActivityPage>
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: Colors.white,
-      builder: (_) => EventFeedbackSheet(
-        initialFeedback: registrationFeedback(registration),
-        canSubmitFeedback: registrationCanSubmitFeedback(registration),
-        onLoad: () => ApiService().getRegistrationFeedback(registrationId),
-        onSubmit: (values) => ApiService().submitRegistrationFeedback(
-          registrationId: registrationId,
-          overallRating: values["overall_rating"] as int,
-          organizationRating: values["organization_rating"] as int?,
-          routeRating: values["route_rating"] as int?,
-          safetyRating: values["safety_rating"] as int?,
-          experienceRating: values["experience_rating"] as int?,
-          comment: values["comment"]?.toString(),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetContext) => Theme(
+        data: _brandTheme(sheetContext),
+        child: EventFeedbackSheet(
+          initialFeedback: registrationFeedback(registration),
+          canSubmitFeedback: registrationCanSubmitFeedback(registration),
+          onLoad: () => ApiService().getRegistrationFeedback(registrationId),
+          onSubmit: (values) => ApiService().submitRegistrationFeedback(
+            registrationId: registrationId,
+            overallRating: values["overall_rating"] as int,
+            organizationRating: values["organization_rating"] as int?,
+            routeRating: values["route_rating"] as int?,
+            safetyRating: values["safety_rating"] as int?,
+            experienceRating: values["experience_rating"] as int?,
+            comment: values["comment"]?.toString(),
+          ),
+          onSaved: () {},
         ),
-        onSaved: () {},
       ),
     );
 
@@ -142,20 +243,20 @@ class _MyActivityPageState extends State<MyActivityPage>
   }
 
   Map<String, dynamic> feedbackRegistrationForResult(
-    Map<String, dynamic> result,
-  ) {
+      Map<String, dynamic> result,
+      ) {
     final nested = result["registration"];
     final registrationId =
-        (result["registration_id"] ??
-                (nested is Map ? nested["id"] : null) ??
-                "")
-            .toString();
+    (result["registration_id"] ??
+        (nested is Map ? nested["id"] : null) ??
+        "")
+        .toString();
     Map<String, dynamic> registration = nested is Map
         ? Map<String, dynamic>.from(nested)
         : registrations.firstWhere(
-            (item) => (item["id"] ?? "").toString() == registrationId,
-            orElse: () => <String, dynamic>{"id": registrationId},
-          );
+          (item) => (item["id"] ?? "").toString() == registrationId,
+      orElse: () => <String, dynamic>{"id": registrationId},
+    );
 
     registration = Map<String, dynamic>.from(registration);
     for (final key in const [
@@ -190,92 +291,113 @@ class _MyActivityPageState extends State<MyActivityPage>
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFEFF3F9),
-        body: SafeArea(
-          child: Column(
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light,
+        child: Scaffold(
+          backgroundColor: _background,
+          body: Column(
             children: [
-              _HeaderSection(
-                onBack: () => Navigator.pop(context),
-                onRefresh: refreshActivity,
+              _ActivityHero(
+                isLoading: isLoading,
                 registrationsCount: registrations.length,
                 resultsCount: results.length,
+                onBack: () => Navigator.pop(context),
+                onRefresh: isLoading ? null : refreshActivity,
+              ),
+
+              // Tab bar sits half over the bottom edge of the hero.
+              Transform.translate(
+                offset: const Offset(0, -24),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: Container(
+                        height: 54,
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: _softShadow,
+                        ),
+                        child: TabBar(
+                          indicator: const BoxDecoration(
+                            color: _primary,
+                            borderRadius: BorderRadius.all(Radius.circular(14)),
+                          ),
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          dividerColor: Colors.transparent,
+                          labelColor: Colors.white,
+                          unselectedLabelColor: _body,
+                          splashBorderRadius: BorderRadius.circular(14),
+                          labelStyle: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          tabs: [
+                            Tab(
+                              child: _TabLabel(
+                                label: "Registrations",
+                                count: isLoading ? null : registrations.length,
+                              ),
+                            ),
+                            Tab(
+                              child: _TabLabel(
+                                label: "Results",
+                                count: isLoading ? null : results.length,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
 
               Expanded(
-                child: isLoading
-                    ? const _LoadingState()
-                    : Column(
+                child: Transform.translate(
+                  offset: const Offset(0, -10),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 632),
+                      child: isLoading
+                          ? const _LoadingState()
+                          : TabBarView(
                         children: [
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-                            height: 50,
-                            padding: const EdgeInsets.all(5),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: const TabBar(
-                              indicator: BoxDecoration(
-                                color: Color(0xFFEAF2FF),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(14),
-                                ),
-                              ),
-                              dividerColor: Colors.transparent,
-                              labelColor: Color(0xFF2563EB),
-                              unselectedLabelColor: Color(0xFF64748B),
-                              labelStyle: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                              ),
-                              unselectedLabelStyle: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              tabs: [
-                                Tab(text: "Registrations"),
-                                Tab(text: "Results"),
-                              ],
+                          RefreshIndicator(
+                            color: _primary,
+                            onRefresh: refreshActivity,
+                            child: _RegistrationList(
+                              registrations: registrations,
+                              nestedMap: nestedMap,
+                              formatDate: formatDate,
+                              onSubmitPayment: openPaymentProofSheet,
+                              onGroupChanged: loadActivity,
+                              onFeedback: openFeedbackSheet,
                             ),
                           ),
-
-                          Expanded(
-                            child: TabBarView(
-                              children: [
-                                RefreshIndicator(
-                                  onRefresh: refreshActivity,
-                                  child: _RegistrationList(
-                                    registrations: registrations,
-                                    nestedMap: nestedMap,
-                                    formatDate: formatDate,
-                                    onSubmitPayment: openPaymentProofSheet,
-                                    onGroupChanged: loadActivity,
-                                    onFeedback: openFeedbackSheet,
-                                  ),
-                                ),
-                                RefreshIndicator(
-                                  onRefresh: refreshActivity,
-                                  child: _ResultList(
-                                    results: results,
-                                    nestedMap: nestedMap,
-                                    feedbackRegistrationForResult:
-                                        feedbackRegistrationForResult,
-                                    onFeedback: openFeedbackSheet,
-                                  ),
-                                ),
-                              ],
+                          RefreshIndicator(
+                            color: _primary,
+                            onRefresh: refreshActivity,
+                            child: _ResultList(
+                              results: results,
+                              nestedMap: nestedMap,
+                              feedbackRegistrationForResult:
+                              feedbackRegistrationForResult,
+                              onFeedback: openFeedbackSheet,
                             ),
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -285,155 +407,165 @@ class _MyActivityPageState extends State<MyActivityPage>
   }
 }
 
-class _HeaderSection extends StatelessWidget {
-  final VoidCallback onBack;
-  final Future<void> Function() onRefresh;
+// ============================================================
+// HERO HEADER
+// ============================================================
+
+class _ActivityHero extends StatelessWidget {
+  final bool isLoading;
   final int registrationsCount;
   final int resultsCount;
+  final VoidCallback onBack;
+  final Future<void> Function()? onRefresh;
 
-  const _HeaderSection({
-    required this.onBack,
-    required this.onRefresh,
+  const _ActivityHero({
+    required this.isLoading,
     required this.registrationsCount,
     required this.resultsCount,
+    required this.onBack,
+    required this.onRefresh,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        children: [
-          Row(
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(16, topInset + 10, 16, 48),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [_primaryDeep, _primary, _accent],
+          stops: [0, 0.55, 1],
+        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
             children: [
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF2563EB),
-                  shadowColor: Colors.black.withValues(alpha: 0.08),
-                  elevation: 2,
-                ),
-                onPressed: onBack,
-                icon: const Icon(Icons.arrow_back),
-              ),
-
-              const SizedBox(width: 12),
-
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Row(
+                children: [
+                  _GlassButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: "Back",
+                    onTap: onBack,
+                  ),
+                  const Expanded(
+                    child: Text(
                       "My Activity",
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 26,
+                        color: Colors.white,
+                        fontSize: 17,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF111827),
-                        letterSpacing: -0.5,
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      "Track your registrations and results",
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
+                  ),
+                  _GlassButton(
+                    icon: Icons.refresh_rounded,
+                    tooltip: "Refresh",
+                    onTap: onRefresh,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                "Track your registrations, payments and race results.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-
-              IconButton.filledTonal(
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF2563EB),
-                  shadowColor: Colors.black.withValues(alpha: 0.08),
-                  elevation: 2,
-                ),
-                onPressed: onRefresh,
-                icon: const Icon(Icons.refresh),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _HeroStat(
+                      icon: Icons.app_registration_rounded,
+                      label: "Registrations",
+                      value: registrationsCount,
+                      isLoading: isLoading,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _HeroStat(
+                      icon: Icons.emoji_events_outlined,
+                      label: "Results",
+                      value: resultsCount,
+                      isLoading: isLoading,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-
-          const SizedBox(height: 18),
-
-          Row(
-            children: [
-              Expanded(
-                child: _InfoCard(
-                  icon: Icons.app_registration_outlined,
-                  label: "Registrations",
-                  value: "$registrationsCount",
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _InfoCard(
-                  icon: Icons.emoji_events_outlined,
-                  label: "Results",
-                  value: "$resultsCount",
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _InfoCard extends StatelessWidget {
+class _HeroStat extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
+  final int value;
+  final bool isLoading;
 
-  const _InfoCard({
+  const _HeroStat({
     required this.icon,
     required this.label,
     required this.value,
+    required this.isLoading,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
           Container(
-            height: 42,
-            width: 42,
+            height: 40,
+            width: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FF),
-              borderRadius: BorderRadius.circular(14),
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(icon, color: const Color(0xFF2563EB), size: 22),
+            child: Icon(icon, color: Colors.white, size: 21),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  value,
+                isLoading
+                    ? Container(
+                  height: 20,
+                  width: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                )
+                    : Text(
+                  "$value",
                   style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF111827),
                     height: 1,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -441,10 +573,10 @@ class _InfoCard extends StatelessWidget {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -452,6 +584,71 @@ class _InfoCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _GlassButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+
+  const _GlassButton({required this.icon, required this.tooltip, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.18),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(
+            height: 44,
+            width: 44,
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TabLabel extends StatelessWidget {
+  final String label;
+  final int? count;
+
+  const _TabLabel({required this.label, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = DefaultTextStyle.of(context).style.color ?? _body;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        if (count != null) ...[
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              "$count",
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
@@ -500,8 +697,8 @@ class _RegistrationList extends StatelessWidget {
         final payment = registration["payment"];
         final paymentProvider =
             registration["payment_provider"] ??
-            registration["provider"] ??
-            (payment is Map ? payment["provider"] : null);
+                registration["provider"] ??
+                (payment is Map ? payment["provider"] : null);
         final eventDate = formatEventDateRange(
           eventStartDate: event["event_start_date"],
           eventEndDate: event["event_end_date"],
@@ -518,10 +715,10 @@ class _RegistrationList extends StatelessWidget {
         final segments = categorySegmentDistanceLabel(
           category,
           eventType:
-              event["interest_type"] ?? event["event_type"] ?? event["type"],
+          event["interest_type"] ?? event["event_type"] ?? event["type"],
           eventTypeDetails: event["type_details"],
           eventTypeDetailItems:
-              event["type_detail_items"] ?? event["detail_items"],
+          event["type_detail_items"] ?? event["detail_items"],
         );
         final readiness = registrationReadiness(registration);
         final categoryNotes = categoryQualificationNotes(category);
@@ -535,15 +732,15 @@ class _RegistrationList extends StatelessWidget {
           eventType: eventType,
           eventTypeDetails: event["type_details"],
           eventTypeDetailItems:
-              event["type_detail_items"] ?? event["detail_items"],
+          event["type_detail_items"] ?? event["detail_items"],
         );
         final gear = categoryGear.isNotEmpty
             ? categoryGear
             : readinessText(readiness, const [
-                "required_gear",
-                "mandatory_gear",
-                "gear",
-              ]);
+          "required_gear",
+          "mandatory_gear",
+          "gear",
+        ]);
         final displayStatus = readiness == null
             ? status
             : readinessRegistrationStatus(readiness, status);
@@ -551,14 +748,14 @@ class _RegistrationList extends StatelessWidget {
         final showFeedback = shouldShowFeedbackPrompt(registration);
         final canSubmitPayment =
             groupAllowsPayment(registration) &&
-            paymentRequired &&
-            status == "pending" &&
-            ![
-              "paid",
-              "waived",
-              "submitted",
-              "expired",
-            ].contains(paymentStatus.toLowerCase());
+                paymentRequired &&
+                status == "pending" &&
+                ![
+                  "paid",
+                  "waived",
+                  "submitted",
+                  "expired",
+                ].contains(paymentStatus.toLowerCase());
 
         return _ActivityCard(
           icon: Icons.app_registration_outlined,
@@ -570,7 +767,7 @@ class _RegistrationList extends StatelessWidget {
           ].join(" - "),
           chips: [
             _ActivityChip(
-              label: "Status: $displayStatus",
+              label: _prettyStatus(displayStatus),
               color: _registrationStatusColor(displayStatus),
             ),
             if ((registration["bib_number"] ?? "").toString().isNotEmpty)
@@ -589,49 +786,49 @@ class _RegistrationList extends StatelessWidget {
               ),
           ],
           action:
-              canSubmitPayment ||
-                  showFeedback ||
-                  registrationGroup(registration) != null
+          canSubmitPayment ||
+              showFeedback ||
+              registrationGroup(registration) != null
               ? Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (registrationGroup(registration) != null) ...[
-                      OutlinedButton(
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => RegistrationGroupPage(
-                              groupId:
-                                  '${registrationGroup(registration)!['id']}',
-                              onChanged: onGroupChanged,
-                            ),
-                          ),
-                        ),
-                        child: const Text('Group Details'),
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (registrationGroup(registration) != null) ...[
+                OutlinedButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => RegistrationGroupPage(
+                        groupId:
+                        '${registrationGroup(registration)!['id']}',
+                        onChanged: onGroupChanged,
                       ),
-                      if (!groupAllowsPayment(registration))
-                        Text(groupPaymentReason(registration)),
-                    ],
-                    if (canSubmitPayment)
-                      FilledButton.icon(
-                        onPressed: () => onSubmitPayment(registration),
-                        icon: const Icon(Icons.upload_file_outlined, size: 18),
-                        label: const Text("Complete Payment"),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          foregroundColor: Colors.white,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                    if (showFeedback)
-                      OutlinedButton.icon(
-                        onPressed: () => onFeedback(registration),
-                        icon: const Icon(Icons.star_outline_rounded, size: 18),
-                        label: Text(_feedbackActionLabel(registration)),
-                      ),
-                  ],
-                )
+                    ),
+                  ),
+                  child: const Text('Group Details'),
+                ),
+                if (!groupAllowsPayment(registration))
+                  _InlineNote(text: groupPaymentReason(registration)),
+              ],
+              if (canSubmitPayment)
+                FilledButton.icon(
+                  onPressed: () => onSubmitPayment(registration),
+                  icon: const Icon(Icons.upload_file_outlined, size: 18),
+                  label: const Text("Complete Payment"),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _primary,
+                    foregroundColor: Colors.white,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              if (showFeedback)
+                OutlinedButton.icon(
+                  onPressed: () => onFeedback(registration),
+                  icon: const Icon(Icons.star_outline_rounded, size: 18),
+                  label: Text(_feedbackActionLabel(registration)),
+                ),
+            ],
+          )
               : null,
           onTap: () => _showActivityDetailsSheet(
             context: context,
@@ -675,7 +872,7 @@ class _RegistrationList extends StatelessWidget {
               _ActivityDetailItem(
                 icon: Icons.verified_outlined,
                 label: "Status",
-                value: displayStatus,
+                value: _prettyStatus(displayStatus),
               ),
               _ActivityDetailItem(
                 icon: Icons.confirmation_number_outlined,
@@ -708,58 +905,58 @@ class _RegistrationList extends StatelessWidget {
                 ),
             ],
             additionalContent:
-                readiness == null && checkpointMapUrl.isEmpty && !showFeedback
+            readiness == null && checkpointMapUrl.isEmpty && !showFeedback
                 ? null
                 : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (readiness != null)
-                        _RegistrationReadinessPanel(
-                          readiness: readiness,
-                          status: displayStatus,
-                          paymentAllowed: groupAllowsPayment(registration),
-                          paymentBlockedReason: groupPaymentReason(
-                            registration,
-                          ),
-                          onAction: (action) {
-                            final normalized = action.trim().toLowerCase();
-                            if (normalized == "complete_payment") {
-                              Navigator.pop(context);
-                              onSubmitPayment(registration);
-                            } else if (normalized == "view_results" ||
-                                normalized == "view_result") {
-                              Navigator.pop(context);
-                              DefaultTabController.of(context).animateTo(1);
-                            }
-                          },
-                        ),
-                      if (readiness != null && checkpointMapUrl.isNotEmpty)
-                        const SizedBox(height: 14),
-                      if (checkpointMapUrl.isNotEmpty)
-                        CategoryCheckpointMap(imageUrl: checkpointMapUrl),
-                      if ((readiness != null || checkpointMapUrl.isNotEmpty) &&
-                          showFeedback)
-                        const SizedBox(height: 14),
-                      if (showFeedback)
-                        _FeedbackPromptCard(
-                          registration: registration,
-                          onOpen: () => onFeedback(registration),
-                        ),
-                    ],
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (readiness != null)
+                  _RegistrationReadinessPanel(
+                    readiness: readiness,
+                    status: displayStatus,
+                    paymentAllowed: groupAllowsPayment(registration),
+                    paymentBlockedReason: groupPaymentReason(
+                      registration,
+                    ),
+                    onAction: (action) {
+                      final normalized = action.trim().toLowerCase();
+                      if (normalized == "complete_payment") {
+                        Navigator.pop(context);
+                        onSubmitPayment(registration);
+                      } else if (normalized == "view_results" ||
+                          normalized == "view_result") {
+                        Navigator.pop(context);
+                        DefaultTabController.of(context).animateTo(1);
+                      }
+                    },
                   ),
+                if (readiness != null && checkpointMapUrl.isNotEmpty)
+                  const SizedBox(height: 14),
+                if (checkpointMapUrl.isNotEmpty)
+                  CategoryCheckpointMap(imageUrl: checkpointMapUrl),
+                if ((readiness != null || checkpointMapUrl.isNotEmpty) &&
+                    showFeedback)
+                  const SizedBox(height: 14),
+                if (showFeedback)
+                  _FeedbackPromptCard(
+                    registration: registration,
+                    onOpen: () => onFeedback(registration),
+                  ),
+              ],
+            ),
             action: readiness == null && canSubmitPayment
                 ? Builder(
-                    builder: (sheetContext) {
-                      return FilledButton.icon(
-                        onPressed: () {
-                          Navigator.pop(sheetContext);
-                          onSubmitPayment(registration);
-                        },
-                        icon: const Icon(Icons.upload_file_outlined),
-                        label: const Text("Complete Payment"),
-                      );
-                    },
-                  )
+              builder: (sheetContext) {
+                return FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    onSubmitPayment(registration);
+                  },
+                  icon: const Icon(Icons.upload_file_outlined),
+                  label: const Text("Complete Payment"),
+                );
+              },
+            )
                 : null,
           ),
         );
@@ -807,7 +1004,7 @@ class _FeedbackPromptCard extends StatelessWidget {
                 child: Text(
                   "Rate This Event",
                   style: TextStyle(
-                    color: Color(0xFF111827),
+                    color: _ink,
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
@@ -823,7 +1020,7 @@ class _FeedbackPromptCard extends StatelessWidget {
                 ? "Your feedback was submitted and can still be updated."
                 : "Your submitted feedback is now read-only.",
             style: const TextStyle(
-              color: Color(0xFF475569),
+              color: _body,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -833,7 +1030,7 @@ class _FeedbackPromptCard extends StatelessWidget {
             Text(
               "Editable until: $deadline",
               style: const TextStyle(
-                color: Color(0xFF64748B),
+                color: _muted,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -855,9 +1052,9 @@ String _feedbackActionLabel(Map<String, dynamic> registration) {
   final feedback = registrationFeedback(registration);
   if (feedback == null) return "Rate This Event";
   return feedbackCanEdit(
-        feedback,
-        canSubmitFeedback: registrationCanSubmitFeedback(registration),
-      )
+    feedback,
+    canSubmitFeedback: registrationCanSubmitFeedback(registration),
+  )
       ? "Edit Feedback"
       : "View Feedback";
 }
@@ -895,14 +1092,14 @@ Color _paymentStatusColor(String status) {
       return const Color(0xFF16A34A);
     case "submitted":
     case "pending":
-      return const Color(0xFF2563EB);
+      return _primary;
     case "failed":
     case "expired":
       return const Color(0xFFDC2626);
     case "unpaid":
       return const Color(0xFFF97316);
     default:
-      return const Color(0xFF64748B);
+      return _muted;
   }
 }
 
@@ -921,7 +1118,7 @@ Color _registrationStatusColor(String status) {
     case "pending":
       return const Color(0xFFF97316);
     default:
-      return const Color(0xFF2563EB);
+      return _primary;
   }
 }
 
@@ -982,13 +1179,13 @@ class _ResultList extends StatelessWidget {
           ],
           action: showFeedback
               ? Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: () => onFeedback(registration),
-                    icon: const Icon(Icons.star_outline_rounded, size: 18),
-                    label: Text(_feedbackActionLabel(registration)),
-                  ),
-                )
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => onFeedback(registration),
+              icon: const Icon(Icons.star_outline_rounded, size: 18),
+              label: Text(_feedbackActionLabel(registration)),
+            ),
+          )
               : null,
           onTap: () => _showActivityDetailsSheet(
             context: context,
@@ -1024,9 +1221,9 @@ class _ResultList extends StatelessWidget {
             ],
             additionalContent: showFeedback
                 ? _FeedbackPromptCard(
-                    registration: registration,
-                    onOpen: () => onFeedback(registration),
-                  )
+              registration: registration,
+              onOpen: () => onFeedback(registration),
+            )
                 : null,
           ),
         );
@@ -1056,79 +1253,83 @@ class _ActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        shadowColor: Colors.black.withValues(alpha: 0.05),
-        elevation: 3,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Padding(
-            padding: const EdgeInsets.all(15),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 48,
-                  width: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF2FF),
-                    borderRadius: BorderRadius.circular(16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: _softShadow,
+        ),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.all(15),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 48,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: _primarySoft,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(icon, color: _primary, size: 24),
                   ),
-                  child: Icon(icon, color: const Color(0xFF2563EB), size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF111827),
-                          height: 1.15,
-                        ),
-                      ),
-                      if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          subtitle,
+                          title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            height: 1.3,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            color: _ink,
+                            height: 1.15,
                           ),
                         ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _muted,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                        if (chips.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: chips.map(_ActivityChipView.new).toList(),
+                          ),
+                        ],
+                        if (action != null) ...[
+                          const SizedBox(height: 12),
+                          action!,
+                        ],
                       ],
-                      if (chips.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: chips.map(_ActivityChipView.new).toList(),
-                        ),
-                      ],
-                      if (action != null) ...[
-                        const SizedBox(height: 12),
-                        action!,
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF94A3B8),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: _faint,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1143,7 +1344,7 @@ class _ActivityChip {
 
   const _ActivityChip({
     required this.label,
-    this.color = const Color(0xFF2563EB),
+    this.color = _primary,
   });
 }
 
@@ -1193,13 +1394,19 @@ void _showActivityDetailsSheet({
     showDragHandle: true,
     isScrollControlled: true,
     backgroundColor: Colors.white,
-    builder: (_) => _ActivityDetailsSheet(
-      icon: icon,
-      title: title,
-      label: label,
-      details: visibleDetails,
-      additionalContent: additionalContent,
-      action: action,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (sheetContext) => Theme(
+      data: _brandTheme(sheetContext),
+      child: _ActivityDetailsSheet(
+        icon: icon,
+        title: title,
+        label: label,
+        details: visibleDetails,
+        additionalContent: additionalContent,
+        action: action,
+      ),
     ),
   );
 }
@@ -1242,12 +1449,12 @@ class _ActivityDetailsSheet extends StatelessWidget {
                           height: 54,
                           width: 54,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEAF2FF),
+                            color: _primarySoft,
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Icon(
                             icon,
-                            color: const Color(0xFF2563EB),
+                            color: _primary,
                             size: 28,
                           ),
                         ),
@@ -1259,7 +1466,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
                               Text(
                                 label,
                                 style: const TextStyle(
-                                  color: Color(0xFF2563EB),
+                                  color: _primary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w900,
                                 ),
@@ -1268,7 +1475,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
                               Text(
                                 title,
                                 style: const TextStyle(
-                                  color: Color(0xFF111827),
+                                  color: _ink,
                                   fontSize: 21,
                                   fontWeight: FontWeight.w900,
                                   height: 1.15,
@@ -1296,11 +1503,11 @@ class _ActivityDetailsSheet extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child:
-                  action ??
+              action ??
                   FilledButton(
                     onPressed: () => Navigator.pop(context),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: _primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -1368,7 +1575,7 @@ class _RegistrationReadinessPanel extends StatelessWidget {
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
-                  "Current status: $status",
+                  "Current status: ${_prettyStatus(status)}",
                   style: TextStyle(
                     color: _registrationStatusColor(status),
                     fontWeight: FontWeight.w900,
@@ -1383,9 +1590,9 @@ class _RegistrationReadinessPanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF2FF),
+              color: _primarySoft,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFBFDBFE)),
+              border: Border.all(color: _primaryBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1393,7 +1600,7 @@ class _RegistrationReadinessPanel extends StatelessWidget {
                 const Text(
                   "NEXT STEP",
                   style: TextStyle(
-                    color: Color(0xFF2563EB),
+                    color: _primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.8,
@@ -1403,7 +1610,7 @@ class _RegistrationReadinessPanel extends StatelessWidget {
                 Text(
                   nextStep["title"] ?? "Next Step",
                   style: const TextStyle(
-                    color: Color(0xFF111827),
+                    color: _ink,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1413,7 +1620,7 @@ class _RegistrationReadinessPanel extends StatelessWidget {
                   Text(
                     nextStep["message"]!,
                     style: const TextStyle(
-                      color: Color(0xFF475569),
+                      color: _body,
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       height: 1.4,
@@ -1434,8 +1641,10 @@ class _RegistrationReadinessPanel extends StatelessWidget {
                     ),
                     label: Text(nextStep["action_label"] ?? "Continue"),
                   ),
-                  if (action == 'complete_payment' && !paymentAllowed)
-                    Text(paymentBlockedReason),
+                  if (action == 'complete_payment' && !paymentAllowed) ...[
+                    const SizedBox(height: 8),
+                    _InlineNote(text: paymentBlockedReason),
+                  ],
                 ],
               ],
             ),
@@ -1446,7 +1655,7 @@ class _RegistrationReadinessPanel extends StatelessWidget {
           const Text(
             "Progress Checklist",
             style: TextStyle(
-              color: Color(0xFF111827),
+              color: _ink,
               fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
@@ -1454,9 +1663,9 @@ class _RegistrationReadinessPanel extends StatelessWidget {
           const SizedBox(height: 9),
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: _fieldFill,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: _border),
             ),
             child: Column(
               children: [
@@ -1536,7 +1745,7 @@ class _ReadinessChecklistRow extends StatelessWidget {
         : isBlocked
         ? const Color(0xFFDC2626)
         : isSkipped
-        ? const Color(0xFF64748B)
+        ? _muted
         : const Color(0xFFF59E0B);
     final icon = isComplete
         ? Icons.check_circle_rounded
@@ -1560,7 +1769,7 @@ class _ReadinessChecklistRow extends StatelessWidget {
                 Text(
                   item["label"] ?? "Progress item",
                   style: const TextStyle(
-                    color: Color(0xFF111827),
+                    color: _ink,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1569,7 +1778,7 @@ class _ReadinessChecklistRow extends StatelessWidget {
                   Text(
                     item["message"]!,
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: _muted,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       height: 1.3,
@@ -1608,13 +1817,13 @@ class _ActivityDetailRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _fieldFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: Row(
         children: [
-          Icon(detail.icon, color: const Color(0xFF2563EB), size: 20),
+          Icon(detail.icon, color: _primary, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1623,7 +1832,7 @@ class _ActivityDetailRow extends StatelessWidget {
                 Text(
                   detail.label,
                   style: const TextStyle(
-                    color: Color(0xFF64748B),
+                    color: _muted,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1632,7 +1841,7 @@ class _ActivityDetailRow extends StatelessWidget {
                 Text(
                   detail.value,
                   style: const TextStyle(
-                    color: Color(0xFF111827),
+                    color: _ink,
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1654,14 +1863,14 @@ class _ActivityDetailEmpty extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _fieldFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _border),
       ),
       child: const Text(
         "No additional details are available yet.",
         textAlign: TextAlign.center,
-        style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w700),
+        style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -1691,7 +1900,7 @@ class _ActivityPaymentProofSheetState
     super.initState();
     final preferred =
         widget.registration["payment_provider"] ??
-        widget.registration["provider"];
+            widget.registration["provider"];
     final option = paymentOptionByProvider(paymentOptions, preferred);
     selectedPaymentProvider = option?["provider"]?.toString();
   }
@@ -1732,7 +1941,7 @@ class _ActivityPaymentProofSheetState
         int.tryParse(
           (widget.registration["payment_amount_cents"] ?? 0).toString(),
         ) ??
-        0;
+            0;
     return "$currency ${(cents / 100).toStringAsFixed(2)}";
   }
 
@@ -1873,7 +2082,7 @@ class _ActivityPaymentProofSheetState
                 Text(
                   isPayMongo ? "Pay Online" : "Submit Payment Proof",
                   style: const TextStyle(
-                    color: Color(0xFF111827),
+                    color: _ink,
                     fontSize: 21,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1886,7 +2095,7 @@ class _ActivityPaymentProofSheetState
                     decoration: const InputDecoration(
                       labelText: "Payment method",
                       prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-                      border: OutlineInputBorder(),
+                      border: _roundedField,
                     ),
                     items: paymentOptions.map((option) {
                       final value = option["provider"].toString();
@@ -1898,19 +2107,19 @@ class _ActivityPaymentProofSheetState
                     onChanged: isSubmitting
                         ? null
                         : (provider) {
-                            setState(() {
-                              selectedPaymentProvider = provider;
-                            });
-                          },
+                      setState(() {
+                        selectedPaymentProvider = provider;
+                      });
+                    },
                   ),
                   const SizedBox(height: 14),
                 ],
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
+                    color: _fieldFill,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    border: Border.all(color: _border),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1926,7 +2135,7 @@ class _ActivityPaymentProofSheetState
                         Text(
                           instructionText,
                           style: const TextStyle(
-                            color: Color(0xFF475569),
+                            color: _body,
                             fontWeight: FontWeight.w600,
                             height: 1.4,
                           ),
@@ -1940,9 +2149,13 @@ class _ActivityPaymentProofSheetState
                   FilledButton.icon(
                     onPressed: isSubmitting ? null : startPayMongoCheckout,
                     icon: const Icon(Icons.credit_card_outlined),
-                    label: const Text("Open PayMongo Checkout"),
+                    label: Text(
+                      isSubmitting
+                          ? "Opening checkout..."
+                          : "Open PayMongo Checkout",
+                    ),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: _primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
@@ -1954,7 +2167,7 @@ class _ActivityPaymentProofSheetState
                     decoration: const InputDecoration(
                       labelText: "Payment reference",
                       prefixIcon: Icon(Icons.confirmation_number_outlined),
-                      border: OutlineInputBorder(),
+                      border: _roundedField,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -1976,7 +2189,7 @@ class _ActivityPaymentProofSheetState
                     decoration: const InputDecoration(
                       labelText: "Notes (optional)",
                       prefixIcon: Icon(Icons.notes_outlined),
-                      border: OutlineInputBorder(),
+                      border: _roundedField,
                     ),
                   ),
                 ],
@@ -2017,7 +2230,7 @@ class _PaymentLine extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF64748B),
+                color: _muted,
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -2027,7 +2240,7 @@ class _PaymentLine extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(
-                color: Color(0xFF111827),
+                color: _ink,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -2043,10 +2256,13 @@ class _LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      itemCount: 4,
-      itemBuilder: (context, index) => const _ActivitySkeletonCard(),
+    return _Pulse(
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+        itemCount: 4,
+        itemBuilder: (context, index) => const _ActivitySkeletonCard(),
+      ),
     );
   }
 }
@@ -2062,13 +2278,7 @@ class _ActivitySkeletonCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        boxShadow: _softShadow,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2116,7 +2326,7 @@ class _SkeletonBlock extends StatelessWidget {
       height: height,
       width: width,
       decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
+        color: _border,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -2148,17 +2358,19 @@ class _EmptyActivityState extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            boxShadow: _softShadow,
           ),
           child: Column(
             children: [
-              Icon(icon, size: 54, color: const Color(0xFF2563EB)),
+              Container(
+                height: 64,
+                width: 64,
+                decoration: BoxDecoration(
+                  color: _primarySoft,
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Icon(icon, size: 30, color: _primary),
+              ),
               const SizedBox(height: 16),
               Text(
                 title,
@@ -2166,7 +2378,7 @@ class _EmptyActivityState extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF111827),
+                  color: _ink,
                 ),
               ),
               const SizedBox(height: 8),
@@ -2174,7 +2386,7 @@ class _EmptyActivityState extends StatelessWidget {
                 message,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF64748B),
+                  color: _muted,
                   fontWeight: FontWeight.w500,
                   height: 1.35,
                 ),
@@ -2184,5 +2396,86 @@ class _EmptyActivityState extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+// ============================================================
+// SMALL SHARED PIECES
+// ============================================================
+
+class _InlineNote extends StatelessWidget {
+  final String text;
+
+  const _InlineNote({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    if (text.trim().isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.info_outline_rounded,
+            size: 15,
+            color: Color(0xFFB45309),
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFF92400E),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Gentle fade pulse for loading skeletons.
+class _Pulse extends StatefulWidget {
+  final Widget child;
+
+  const _Pulse({required this.child});
+
+  @override
+  State<_Pulse> createState() => _PulseState();
+}
+
+class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+  late final AnimationController controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  late final Animation<double> opacity = Tween<double>(
+    begin: 0.55,
+    end: 1,
+  ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) return widget.child;
+    return FadeTransition(opacity: opacity, child: widget.child);
   }
 }

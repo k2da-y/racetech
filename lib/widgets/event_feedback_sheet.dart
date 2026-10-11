@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 import '../services/api_service.dart';
 import '../utils/registration_feedback.dart';
@@ -145,7 +146,7 @@ class _EventFeedbackSheetState extends State<EventFeedbackSheet> {
                       children: [
                         const Icon(
                           Icons.rate_review_outlined,
-                          color: Color(0xFF2563EB),
+                          color: AppColors.primary,
                           size: 28,
                         ),
                         const SizedBox(width: 10),

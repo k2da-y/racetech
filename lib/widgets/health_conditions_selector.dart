@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
 class HealthConditionsSelector extends StatefulWidget {
   final TextEditingController controller;
@@ -195,7 +196,7 @@ class _HealthConditionsSelectorState extends State<HealthConditionsSelector> {
                 children: [
                   const Icon(
                     Icons.medical_information_outlined,
-                    color: Color(0xFF2563EB),
+                    color: AppColors.primary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
