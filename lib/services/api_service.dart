@@ -1,5 +1,6 @@
 import 'dart:async';
 import '../utils/registration_group.dart';
+import '../utils/health_profile.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
@@ -109,6 +110,8 @@ class AppConfigData {
 }
 
 class ApiService {
+  final http.Client? profileClient;
+  ApiService({this.profileClient});
   Future<ApiDataResult<Map<String, dynamic>>> groupRequest(
     String groupId, {
     String action = '',
@@ -733,15 +736,13 @@ class ApiService {
     }
 
     try {
-      final response = await http
-          .get(
-            Uri.parse("$baseUrl/me"),
-            headers: {
-              "Accept": "application/json",
-              "Authorization": "Bearer $token",
-            },
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await (profileClient?.get ?? http.get)(
+        Uri.parse("$baseUrl/me"),
+        headers: {
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+        },
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -765,6 +766,8 @@ class ApiService {
     required String emergencyContactNumber,
     required String medicalConditions,
     String? avatarPath,
+    HealthMeasurements? measurements,
+    bool healthOnly = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
@@ -773,30 +776,33 @@ class ApiService {
       return const ApiActionResult.failure("Please log in again.");
     }
 
+    if (measurements != null && measurements.validate().isNotEmpty) {
+      return ApiActionResult.failure(measurements.validate().values.first);
+    }
     try {
-      final fields = {
+      final fields = <String, dynamic>{
         "name": name,
-        "phone": phone,
-        "gender": gender,
-        "birthdate": birthdate,
-        "address": address,
-        "emergency_contact_name": emergencyContactName,
-        "emergency_contact_number": emergencyContactNumber,
-        "medical_conditions": medicalConditions,
+        if (!healthOnly) ...{
+          "phone": phone,
+          "gender": gender,
+          "birthdate": birthdate,
+          "address": address,
+          "emergency_contact_name": emergencyContactName,
+          "emergency_contact_number": emergencyContactNumber,
+          "medical_conditions": medicalConditions,
+        },
+        if (measurements != null) ...measurements.toJson(),
       };
 
-      final response = await http
-          .patch(
-            Uri.parse("$baseUrl/me"),
-            headers: {
-              "Accept": "application/json",
-              "Authorization": "Bearer $token",
-            },
-            body: fields,
-          )
-          .timeout(const Duration(seconds: 15));
-
-      log(response.body);
+      final response = await (profileClient?.patch ?? http.patch)(
+        Uri.parse("$baseUrl/me"),
+        headers: {
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode(fields),
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200 && avatarPath != null) {
         final avatarRequest = http.MultipartRequest(
@@ -815,8 +821,6 @@ class ApiService {
           const Duration(seconds: 30),
         );
         final avatarResponse = await http.Response.fromStream(streamedResponse);
-
-        log(avatarResponse.body);
 
         if (avatarResponse.statusCode == 200) {
           return ApiActionResult.success(

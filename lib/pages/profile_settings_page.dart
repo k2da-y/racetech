@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
 import '../widgets/health_conditions_selector.dart';
+import '../utils/health_profile.dart';
+import '../widgets/health_profile_section.dart';
 
 // ============================================================
 // RACETECH DESIGN SYSTEM — soft indigo
@@ -36,7 +38,8 @@ const List<BoxShadow> _softShadow = [
 // ============================================================
 
 class ProfileSettingsPage extends StatefulWidget {
-  const ProfileSettingsPage({super.key});
+  final ApiService? apiService;
+  const ProfileSettingsPage({super.key, this.apiService});
 
   @override
   State<ProfileSettingsPage> createState() => _ProfileSettingsPageState();
@@ -50,6 +53,24 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   final emergencyNameController = TextEditingController();
   final emergencyNumberController = TextEditingController();
   final medicalConditionsController = TextEditingController();
+  final heightController = TextEditingController();
+  final weightController = TextEditingController();
+  final measurementDateController = TextEditingController();
+  HealthProfile healthProfile = const HealthProfile();
+  String savedMeasurements = '';
+  String savedPersonalSnapshot = '';
+  Map<String, String> healthErrors = {};
+  ApiService get api => widget.apiService ?? ApiService();
+  HealthMeasurements get measurements => HealthMeasurements(
+    heightController.text,
+    weightController.text,
+    measurementDateController.text,
+  );
+  String get measurementSnapshot => [
+    heightController.text,
+    weightController.text,
+    measurementDateController.text,
+  ].join('\u0000');
 
   String? selectedGender;
 
@@ -88,6 +109,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       emergencyNameController,
       emergencyNumberController,
       medicalConditionsController,
+      heightController,
+      weightController,
+      measurementDateController,
     ]) {
       controller.addListener(onFormChanged);
     }
@@ -104,6 +128,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     emergencyNameController.dispose();
     emergencyNumberController.dispose();
     medicalConditionsController.dispose();
+    heightController.dispose();
+    weightController.dispose();
+    measurementDateController.dispose();
     super.dispose();
   }
 
@@ -116,24 +143,31 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
 
   Future<void> loadProfile() async {
-    final user = await ApiService().getUser();
+    final user = await api.getUser();
 
     if (!mounted) return;
 
-    if (user != null) {
-      nameController.text = (user["name"] ?? "").toString();
-      phoneController.text = (user["phone"] ?? "").toString();
-      selectedGender = normalizeGender((user["gender"] ?? "").toString());
-      birthdateController.text = (user["birthdate"] ?? "").toString();
-      addressController.text = (user["address"] ?? "").toString();
-      emergencyNameController.text = (user["emergency_contact_name"] ?? "")
-          .toString();
-      emergencyNumberController.text = (user["emergency_contact_number"] ?? "")
-          .toString();
-      medicalConditionsController.text = (user["medical_conditions"] ?? "")
-          .toString();
-      avatarUrl = (user["avatar_url"] ?? "").toString();
+    if (user == null) {
+      setState(() => isLoading = false);
+      showMessage('Unable to refresh your profile. Please try again.');
+      return;
     }
+    healthProfile = HealthProfile.fromUser(user);
+    heightController.text = healthProfile.height?.toString() ?? '';
+    weightController.text = healthProfile.weight?.toString() ?? '';
+    measurementDateController.text = healthProfile.measuredAt;
+    nameController.text = (user["name"] ?? "").toString();
+    phoneController.text = (user["phone"] ?? "").toString();
+    selectedGender = normalizeGender((user["gender"] ?? "").toString());
+    birthdateController.text = (user["birthdate"] ?? "").toString();
+    addressController.text = (user["address"] ?? "").toString();
+    emergencyNameController.text = (user["emergency_contact_name"] ?? "")
+        .toString();
+    emergencyNumberController.text = (user["emergency_contact_number"] ?? "")
+        .toString();
+    medicalConditionsController.text = (user["medical_conditions"] ?? "")
+        .toString();
+    avatarUrl = (user["avatar_url"] ?? "").toString();
 
     selectedAvatar = null;
 
@@ -141,6 +175,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       isLoading = false;
       showValidationErrors = false;
       savedSnapshot = formSnapshot();
+      savedMeasurements = measurementSnapshot;
+      savedPersonalSnapshot = formSnapshot(includeMeasurements: false);
+      healthErrors = {};
     });
   }
 
@@ -157,7 +194,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // UNSAVED CHANGES
   // ============================================================
 
-  String formSnapshot() {
+  String formSnapshot({bool includeMeasurements = true}) {
     return [
       nameController.text,
       phoneController.text,
@@ -167,6 +204,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       emergencyNameController.text,
       emergencyNumberController.text,
       medicalConditionsController.text,
+      if (includeMeasurements) measurementSnapshot,
       selectedAvatar?.path ?? "",
     ].map((value) => value.trim()).join("\u0000");
   }
@@ -353,21 +391,35 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // ============================================================
 
   Future<void> saveProfile() async {
+    if (isSaving || isLoading) return;
     FocusScope.of(context).unfocus();
+    final changedMeasurements = measurementSnapshot != savedMeasurements;
+    final healthOnly =
+        changedMeasurements &&
+        formSnapshot(includeMeasurements: false) == savedPersonalSnapshot;
+    final errors = changedMeasurements
+        ? measurements.validate()
+        : <String, String>{};
+    setState(() => healthErrors = errors);
+    if (errors.isNotEmpty) {
+      showMessage(errors.values.first);
+      return;
+    }
 
     if (!nameValid ||
-        phoneController.text.trim().isEmpty ||
-        !genderValid ||
-        !birthdateValid ||
-        !addressValid ||
-        !emergencyNameValid ||
-        emergencyNumberController.text.trim().isEmpty) {
+        (!healthOnly &&
+            (phoneController.text.trim().isEmpty ||
+                !genderValid ||
+                !birthdateValid ||
+                !addressValid ||
+                !emergencyNameValid ||
+                emergencyNumberController.text.trim().isEmpty))) {
       setState(() => showValidationErrors = true);
       showMessage("Please complete all required fields.");
       return;
     }
 
-    if (!phoneValid || !emergencyNumberValid) {
+    if (!healthOnly && (!phoneValid || !emergencyNumberValid)) {
       setState(() => showValidationErrors = true);
       showMessage("Phone numbers must be 11 digits.");
       return;
@@ -375,7 +427,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     setState(() => isSaving = true);
 
-    final result = await ApiService().updateProfile(
+    final result = await api.updateProfile(
       name: nameController.text.trim(),
       phone: phoneController.text.trim(),
       gender: selectedGender ?? "",
@@ -385,6 +437,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       emergencyContactNumber: emergencyNumberController.text.trim(),
       medicalConditions: medicalConditionsController.text.trim(),
       avatarPath: selectedAvatar?.path,
+      measurements: changedMeasurements ? measurements : null,
+      healthOnly: healthOnly,
     );
 
     if (!mounted) return;
@@ -394,9 +448,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     showMessage(result.message);
 
     if (result.success) {
-      savedSnapshot = formSnapshot();
-      // pop (not maybePop) so the unsaved-changes guard is skipped.
-      Navigator.pop(context, true);
+      if (!changedMeasurements) {
+        savedSnapshot = formSnapshot();
+        Navigator.pop(context, true);
+        return;
+      }
+      // Fetch the authoritative BMI instead of calculating a preview locally.
+      setState(() => isLoading = true);
+      await loadProfile();
     }
   }
 
@@ -600,10 +659,20 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
         // ---------------- HEALTH ----------------
         _SectionCard(
-          title: "Health Notes",
+          title: "Health Profile",
           subtitle: "Optional",
           icon: Icons.health_and_safety_outlined,
           children: [
+            HealthProfileSection(
+              profile: healthProfile,
+              height: heightController,
+              weight: weightController,
+              date: measurementDateController,
+              errors: healthErrors,
+              enabled: !isSaving,
+              hasChanges: measurementSnapshot != savedMeasurements,
+            ),
+            const SizedBox(height: 20),
             HealthConditionsSelector(
               controller: medicalConditionsController,
               enabled: !isSaving,
