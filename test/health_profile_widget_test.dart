@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:racetechph/pages/profile_settings_page.dart';
 import 'package:racetechph/services/api_service.dart';
+import 'package:racetechph/services/offline_health_profile_store.dart';
 import 'package:racetechph/utils/health_profile.dart';
 import 'package:racetechph/widgets/health_profile_section.dart';
 
@@ -94,7 +95,7 @@ void main() {
         find.textContaining('Enter height and weight together'),
         findsOneWidget,
       );
-      expect(find.textContaining('last saved measurements'), findsOneWidget);
+      expect(find.textContaining('private on-device preview'), findsOneWidget);
       expect(find.text('BMI: 23.1'), findsOneWidget);
     },
   );
@@ -106,18 +107,32 @@ void main() {
         var saved = false;
         var gets = 0;
         final client = MockClient((request) async {
-          if (request.method == 'PATCH') {
+          if (request.method == 'PUT') {
             final body = jsonDecode(request.body) as Map;
             expect(body['height_cm'], 170);
             expect(body['weight_kg'], 65);
-            expect(body['name'], 'Participant');
             expect(body.containsKey('bmi'), isFalse);
-            expect(
-              body.keys,
-              unorderedEquals(['name', 'height_cm', 'weight_kg']),
-            );
+            expect(body['client_update_id'], isNotEmpty);
             saved = true;
-            return http.Response(jsonEncode({'message': 'Saved'}), 200);
+            return http.Response(
+              jsonEncode({
+                'message': 'Saved',
+                'user': {
+                  'name': 'Participant',
+                  if (completeProfile) 'birthdate': '2000-01-01',
+                  'height_cm': 170,
+                  'weight_kg': 65,
+                  'bmi': 23.1,
+                  'bmi_category': completeProfile ? 'Healthy weight' : null,
+                  'bmi_interpretation': completeProfile
+                      ? 'adult'
+                      : 'age_unknown',
+                  'bmi_measured_at': '2026-10-14',
+                  'health_profile_updated_at': '2026-10-17T09:00:00Z',
+                },
+              }),
+              200,
+            );
           }
           gets++;
           return http.Response(
@@ -151,7 +166,10 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: ProfileSettingsPage(
-              apiService: ApiService(profileClient: client),
+              apiService: ApiService(
+                profileClient: client,
+                healthStore: MemoryHealthProfileStore(),
+              ),
             ),
           ),
         );

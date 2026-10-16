@@ -7,6 +7,8 @@ class HealthProfileSection extends StatelessWidget {
   final Map<String, String> errors;
   final bool enabled;
   final bool hasChanges;
+  final String syncMessage;
+  final bool syncWarning;
   const HealthProfileSection({
     super.key,
     required this.profile,
@@ -16,6 +18,8 @@ class HealthProfileSection extends StatelessWidget {
     this.errors = const {},
     this.enabled = true,
     this.hasChanges = false,
+    this.syncMessage = '',
+    this.syncWarning = false,
   });
 
   Future<void> pickDate(BuildContext context) async {
@@ -42,6 +46,35 @@ class HealthProfileSection extends StatelessWidget {
         'Private health measurements. Optional and not used for registration eligibility.',
       ),
       const SizedBox(height: 16),
+      if (syncMessage.isNotEmpty) ...[
+        Semantics(
+          liveRegion: true,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: syncWarning ? Colors.orange.shade50 : Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: syncWarning
+                    ? Colors.orange.shade300
+                    : Colors.blue.shade200,
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  syncWarning ? Icons.sync_problem : Icons.cloud_off,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: Text(syncMessage)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
       for (final field in [
         (height, 'Height (cm)', 'height'),
         (weight, 'Weight (kg)', 'weight'),
@@ -91,7 +124,7 @@ class HealthProfileSection extends StatelessWidget {
       const Divider(),
       if (hasChanges)
         const Text(
-          'Unsaved changes. The result below reflects your last saved measurements.',
+          'Unsaved changes. Save to calculate a private on-device preview.',
         ),
       if (profile.bmi != null)
         Text(

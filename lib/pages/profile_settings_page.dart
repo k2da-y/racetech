@@ -45,7 +45,8 @@ class ProfileSettingsPage extends StatefulWidget {
   State<ProfileSettingsPage> createState() => _ProfileSettingsPageState();
 }
 
-class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
+class _ProfileSettingsPageState extends State<ProfileSettingsPage>
+    with WidgetsBindingObserver {
   final nameController = TextEditingController();
   final phoneController = TextEditingController();
   final birthdateController = TextEditingController();
@@ -60,6 +61,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   String savedMeasurements = '';
   String savedPersonalSnapshot = '';
   Map<String, String> healthErrors = {};
+  Map<String, dynamic> profileUser = {};
+  bool profileLoadedFromCache = false;
+  bool healthUpdateQueued = false;
+  bool healthUpdateConflict = false;
   ApiService get api => widget.apiService ?? ApiService();
   HealthMeasurements get measurements => HealthMeasurements(
     heightController.text,
@@ -100,6 +105,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     for (final controller in [
       nameController,
@@ -121,6 +127,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     nameController.dispose();
     phoneController.dispose();
     birthdateController.dispose();
@@ -134,6 +141,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !hasUnsavedChanges) {
+      api.startHealthProfileSync();
+      loadProfile(showFailure: false);
+    }
+  }
+
   void onFormChanged() {
     if (mounted) setState(() {});
   }
@@ -142,16 +157,21 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
   // LOAD
   // ============================================================
 
-  Future<void> loadProfile() async {
-    final user = await api.getUser();
+  Future<void> loadProfile({bool showFailure = true}) async {
+    final session = await api.fetchUser();
+    final user = session.user;
 
     if (!mounted) return;
 
     if (user == null) {
       setState(() => isLoading = false);
-      showMessage('Unable to refresh your profile. Please try again.');
+      if (showFailure) {
+        showMessage('Unable to refresh your profile. Please try again.');
+      }
       return;
     }
+    profileUser = user;
+    profileLoadedFromCache = session.isCached;
     healthProfile = HealthProfile.fromUser(user);
     heightController.text = healthProfile.height?.toString() ?? '';
     weightController.text = healthProfile.weight?.toString() ?? '';
@@ -168,6 +188,17 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     medicalConditionsController.text = (user["medical_conditions"] ?? "")
         .toString();
     avatarUrl = (user["avatar_url"] ?? "").toString();
+
+    final pending = await api.pendingHealthUpdate();
+    if (!mounted) return;
+    healthUpdateQueued = pending != null && !pending.conflict;
+    healthUpdateConflict = pending?.conflict == true;
+    if (pending != null && !pending.conflict) {
+      heightController.text = pending.heightCm?.toString() ?? '';
+      weightController.text = pending.weightKg?.toString() ?? '';
+      measurementDateController.text = pending.measuredAt ?? '';
+      healthProfile = HealthProfile.offlinePreview(user, measurements);
+    }
 
     selectedAvatar = null;
 
@@ -427,19 +458,25 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
     setState(() => isSaving = true);
 
-    final result = await api.updateProfile(
-      name: nameController.text.trim(),
-      phone: phoneController.text.trim(),
-      gender: selectedGender ?? "",
-      birthdate: birthdateController.text.trim(),
-      address: addressController.text.trim(),
-      emergencyContactName: emergencyNameController.text.trim(),
-      emergencyContactNumber: emergencyNumberController.text.trim(),
-      medicalConditions: medicalConditionsController.text.trim(),
-      avatarPath: selectedAvatar?.path,
-      measurements: changedMeasurements ? measurements : null,
-      healthOnly: healthOnly,
-    );
+    ApiActionResult result;
+    if (!healthOnly) {
+      result = await api.updateProfile(
+        name: nameController.text.trim(),
+        phone: phoneController.text.trim(),
+        gender: selectedGender ?? "",
+        birthdate: birthdateController.text.trim(),
+        address: addressController.text.trim(),
+        emergencyContactName: emergencyNameController.text.trim(),
+        emergencyContactNumber: emergencyNumberController.text.trim(),
+        medicalConditions: medicalConditionsController.text.trim(),
+        avatarPath: selectedAvatar?.path,
+      );
+      if (result.success && changedMeasurements) {
+        result = await api.updateHealthProfile(measurements);
+      }
+    } else {
+      result = await api.updateHealthProfile(measurements);
+    }
 
     if (!mounted) return;
 
@@ -448,6 +485,23 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     showMessage(result.message);
 
     if (result.success) {
+      if (result.queued) {
+        setState(() {
+          profileUser = result.user ?? profileUser;
+          healthProfile = HealthProfile.offlinePreview(
+            profileUser,
+            measurements,
+          );
+          healthUpdateQueued = true;
+          healthUpdateConflict = false;
+          profileLoadedFromCache = true;
+          savedMeasurements = measurementSnapshot;
+          savedSnapshot = formSnapshot();
+          savedPersonalSnapshot = formSnapshot(includeMeasurements: false);
+        });
+        api.startHealthProfileSync();
+        return;
+      }
       if (!changedMeasurements) {
         savedSnapshot = formSnapshot();
         Navigator.pop(context, true);
@@ -456,6 +510,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
       // Fetch the authoritative BMI instead of calculating a preview locally.
       setState(() => isLoading = true);
       await loadProfile();
+    } else if (result.conflict) {
+      setState(() {
+        healthUpdateQueued = false;
+        healthUpdateConflict = true;
+      });
+      await loadProfile(showFailure: false);
     }
   }
 
@@ -671,6 +731,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
               errors: healthErrors,
               enabled: !isSaving,
               hasChanges: measurementSnapshot != savedMeasurements,
+              syncMessage: healthUpdateConflict
+                  ? 'Sync conflict—newer measurements are saved online. Review them, then edit and save again if needed.'
+                  : healthUpdateQueued
+                  ? 'Offline—queued for sync. This BMI is a private on-device preview; the server remains authoritative.'
+                  : profileLoadedFromCache
+                  ? 'Offline—showing the latest securely cached Health Profile.'
+                  : '',
+              syncWarning: healthUpdateConflict || healthUpdateQueued,
             ),
             const SizedBox(height: 20),
             HealthConditionsSelector(

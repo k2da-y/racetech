@@ -30,22 +30,23 @@ class _AuthGatePageState extends State<AuthGatePage> {
 
     final apiService = ApiService();
     final results = await Future.wait([
-      apiService.getUser(),
+      apiService.fetchUser(),
       apiService.getAppConfig(),
     ]);
-    final user = results[0] as Map<String, dynamic>?;
+    final session = results[0] as UserFetchResult;
+    final user = session.user;
 
     if (!mounted) return;
 
     if (user == null) {
-      await prefs.remove("token");
-      await prefs.remove("isProfiled");
-      await prefs.remove("activities");
       openPage(const LandingPage());
       return;
     }
 
-    await apiService.registerDeviceToken(token);
+    apiService.startHealthProfileSync();
+    if (!session.isCached) {
+      await apiService.registerDeviceToken(token);
+    }
 
     final apiInterests = interestsFromUser(user);
 

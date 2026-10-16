@@ -29,6 +29,66 @@ class HealthProfile {
     );
   }
 
+  factory HealthProfile.offlinePreview(
+    Map<String, dynamic> user,
+    HealthMeasurements measurements, {
+    DateTime? now,
+  }) {
+    final values = measurements.toJson();
+    final height = values['height_cm'] as double?;
+    final weight = values['weight_kg'] as double?;
+    final today = now ?? DateTime.now();
+    final measuredAt = height == null
+        ? ''
+        : (values['bmi_measured_at']?.toString() ?? _date(today));
+    final bmi = height == null || weight == null
+        ? null
+        : double.parse(
+            (weight / ((height / 100) * (height / 100))).toStringAsFixed(1),
+          );
+    final birthdate = DateTime.tryParse('${user['birthdate'] ?? ''}');
+    final reference = DateTime.tryParse(measuredAt) ?? today;
+    final interpretation = bmi == null
+        ? 'unavailable'
+        : birthdate == null
+        ? 'age_unknown'
+        : _ageOn(birthdate, reference) >= 20
+        ? 'adult'
+        : 'age_specific_required';
+
+    return HealthProfile(
+      height: height,
+      weight: weight,
+      bmi: bmi,
+      category: interpretation == 'adult' ? _adultCategory(bmi) : '',
+      interpretation: interpretation,
+      measuredAt: measuredAt,
+      notice: user['bmi_notice']?.toString().trim() ?? '',
+    );
+  }
+
+  static String _date(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
+  static int _ageOn(DateTime birthdate, DateTime date) {
+    var age = date.year - birthdate.year;
+    if (date.month < birthdate.month ||
+        (date.month == birthdate.month && date.day < birthdate.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  static String _adultCategory(double? bmi) => switch (bmi) {
+    null => '',
+    < 18.5 => 'Underweight',
+    < 25 => 'Healthy weight',
+    < 30 => 'Overweight',
+    _ => 'Obesity',
+  };
+
   String get message => switch (interpretation) {
     'age_specific_required' =>
       'Under 20: age-specific interpretation is required. Adult BMI categories do not apply.',

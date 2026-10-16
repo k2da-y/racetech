@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' show Random;
 import '../utils/registration_group.dart';
 import '../utils/health_profile.dart';
+import 'offline_health_profile_store.dart';
 import 'dart:convert';
 import 'dart:developer';
 import 'dart:io';
@@ -40,14 +42,40 @@ enum VerifyResetCodeResult { success, invalidCode, networkError, serverError }
 class ApiActionResult {
   final bool success;
   final String message;
+  final bool queued;
+  final bool conflict;
+  final Map<String, dynamic>? user;
 
-  const ApiActionResult({required this.success, required this.message});
+  const ApiActionResult({
+    required this.success,
+    required this.message,
+    this.queued = false,
+    this.conflict = false,
+    this.user,
+  });
 
   const ApiActionResult.success([String message = "Success"])
     : this(success: true, message: message);
 
   const ApiActionResult.failure(String message)
     : this(success: false, message: message);
+
+  const ApiActionResult.queued(String message, {Map<String, dynamic>? user})
+    : this(success: true, message: message, queued: true, user: user);
+
+  const ApiActionResult.conflict(String message, {Map<String, dynamic>? user})
+    : this(success: false, message: message, conflict: true, user: user);
+}
+
+enum UserFetchState { online, cached, unauthorized, signedOut, unavailable }
+
+class UserFetchResult {
+  final UserFetchState state;
+  final Map<String, dynamic>? user;
+  const UserFetchResult(this.state, [this.user]);
+
+  bool get isUsable => user != null;
+  bool get isCached => state == UserFetchState.cached;
 }
 
 class ApiDataResult<T> {
@@ -111,7 +139,9 @@ class AppConfigData {
 
 class ApiService {
   final http.Client? profileClient;
-  ApiService({this.profileClient});
+  final HealthProfileStore healthStore;
+  ApiService({this.profileClient, HealthProfileStore? healthStore})
+    : healthStore = healthStore ?? const SecureHealthProfileStore();
   Future<ApiDataResult<Map<String, dynamic>>> groupRequest(
     String groupId, {
     String action = '',
@@ -172,6 +202,7 @@ class ApiService {
 
   static StreamSubscription<String>? _tokenRefreshSubscription;
   static AppConfigData? _cachedConfig;
+  static Timer? _healthSyncTimer;
 
   String messageFromResponse(http.Response response, String fallback) {
     try {
@@ -222,6 +253,7 @@ class ApiService {
         final data = jsonDecode(response.body);
 
         final prefs = await SharedPreferences.getInstance();
+        await _safeClearHealthStore();
         final apiToken = data["token"].toString();
         await prefs.setString("token", apiToken);
         await registerDeviceToken(apiToken);
@@ -286,6 +318,7 @@ class ApiService {
 
         if (data is Map && data["token"] != null) {
           final prefs = await SharedPreferences.getInstance();
+          await _safeClearHealthStore();
           final apiToken = data["token"].toString();
           await prefs.setString("token", apiToken);
           await registerDeviceToken(apiToken);
@@ -694,6 +727,9 @@ class ApiService {
       await prefs.remove("token");
       await prefs.remove("isProfiled");
       await prefs.remove("activities");
+      await _safeClearHealthStore();
+      _healthSyncTimer?.cancel();
+      _healthSyncTimer = null;
     }
 
     if (token == null) {
@@ -727,12 +763,12 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>?> getUser() async {
+  Future<UserFetchResult> fetchUser({bool allowCache = true}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString("token");
 
     if (token == null) {
-      return null;
+      return const UserFetchResult(UserFetchState.signedOut);
     }
 
     try {
@@ -746,14 +782,226 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return data["user"] as Map<String, dynamic>?;
+        final rawUser = data["user"];
+        if (rawUser is Map) {
+          final user = Map<String, dynamic>.from(rawUser);
+          await _safeCacheUser(user);
+          return UserFetchResult(UserFetchState.online, user);
+        }
       }
 
-      return null;
+      if (response.statusCode == 401) {
+        await prefs.remove("token");
+        await prefs.remove("isProfiled");
+        await prefs.remove("activities");
+        await _safeClearHealthStore();
+        _healthSyncTimer?.cancel();
+        _healthSyncTimer = null;
+        return const UserFetchResult(UserFetchState.unauthorized);
+      }
+
+      return allowCache
+          ? await _cachedUserResult()
+          : const UserFetchResult(UserFetchState.unavailable);
     } catch (e) {
       log("Get user error: $e");
+      return allowCache
+          ? await _cachedUserResult()
+          : const UserFetchResult(UserFetchState.unavailable);
+    }
+  }
+
+  Future<Map<String, dynamic>?> getUser() async => (await fetchUser()).user;
+
+  Future<UserFetchResult> _cachedUserResult() async {
+    try {
+      final user = await healthStore.readCachedUser();
+      return user == null
+          ? const UserFetchResult(UserFetchState.unavailable)
+          : UserFetchResult(UserFetchState.cached, user);
+    } catch (e) {
+      log('Read cached user error: $e');
+      return const UserFetchResult(UserFetchState.unavailable);
+    }
+  }
+
+  Future<void> _safeCacheUser(Map<String, dynamic> user) async {
+    try {
+      await healthStore.writeCachedUser(user);
+    } catch (e) {
+      log('Cache user error: $e');
+    }
+  }
+
+  Future<void> _safeClearHealthStore() async {
+    try {
+      await healthStore.clearAll();
+    } catch (e) {
+      log('Clear Health Profile cache error: $e');
+    }
+  }
+
+  Future<PendingHealthUpdate?> pendingHealthUpdate() async {
+    try {
+      return await healthStore.readPending();
+    } catch (e) {
+      log('Read pending Health Profile update error: $e');
       return null;
     }
+  }
+
+  void startHealthProfileSync() {
+    _healthSyncTimer ??= Timer.periodic(const Duration(seconds: 20), (_) async {
+      final service = ApiService();
+      if (await service.pendingHealthUpdate() != null) {
+        await service.syncPendingHealthProfile();
+      }
+    });
+    unawaited(syncPendingHealthProfile());
+  }
+
+  Future<ApiActionResult> updateHealthProfile(
+    HealthMeasurements measurements,
+  ) async {
+    final errors = measurements.validate();
+    if (errors.isNotEmpty) {
+      return ApiActionResult.failure(errors.values.first);
+    }
+
+    Map<String, dynamic>? cachedUser;
+    try {
+      cachedUser = await healthStore.readCachedUser();
+    } catch (_) {}
+
+    final values = measurements.toJson();
+    final update = PendingHealthUpdate(
+      id: _newUuid(),
+      clientUpdatedAt: DateTime.now().toUtc().toIso8601String(),
+      baseVersion: cachedUser?['health_profile_updated_at']?.toString(),
+      heightCm: values['height_cm'] as double?,
+      weightKg: values['weight_kg'] as double?,
+      measuredAt: values['bmi_measured_at']?.toString(),
+    );
+
+    try {
+      await healthStore.writePending(update);
+    } catch (e) {
+      log('Queue Health Profile update error: $e');
+      return const ApiActionResult.failure(
+        'Unable to protect this update on your device. Please try again.',
+      );
+    }
+
+    return _sendHealthUpdate(update, cachedUser: cachedUser);
+  }
+
+  Future<ApiActionResult> syncPendingHealthProfile() async {
+    final pending = await pendingHealthUpdate();
+    if (pending == null) {
+      return const ApiActionResult.success('No Health Profile update pending.');
+    }
+    if (pending.conflict) {
+      return const ApiActionResult.conflict(
+        'Review the latest Health Profile before saving this offline edit again.',
+      );
+    }
+    return _sendHealthUpdate(pending);
+  }
+
+  Future<ApiActionResult> _sendHealthUpdate(
+    PendingHealthUpdate update, {
+    Map<String, dynamic>? cachedUser,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
+      return const ApiActionResult.failure('Please log in again.');
+    }
+
+    try {
+      final response = await (profileClient?.put ?? http.put)(
+        Uri.parse('$baseUrl/me/health-profile'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(update.toJson()..remove('conflict')),
+      ).timeout(const Duration(seconds: 15));
+
+      Map<String, dynamic>? responseUser;
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['user'] is Map) {
+          responseUser = Map<String, dynamic>.from(decoded['user'] as Map);
+          await _safeCacheUser(responseUser);
+        }
+      } catch (_) {}
+
+      if (response.statusCode == 200) {
+        await healthStore.clearPending();
+        return ApiActionResult(
+          success: true,
+          message: messageFromResponse(
+            response,
+            'Health Profile synchronized successfully.',
+          ),
+          user: responseUser,
+        );
+      }
+
+      if (response.statusCode == 409) {
+        await healthStore.writePending(update.markConflict());
+        return ApiActionResult.conflict(
+          messageFromResponse(
+            response,
+            'Your Health Profile changed elsewhere. Review the latest measurements before saving again.',
+          ),
+          user: responseUser,
+        );
+      }
+
+      if (response.statusCode == 401) {
+        await prefs.remove('token');
+        await prefs.remove('isProfiled');
+        await prefs.remove('activities');
+        await _safeClearHealthStore();
+        return const ApiActionResult.failure(
+          'Your session expired. Please log in again.',
+        );
+      }
+
+      if (response.statusCode >= 400 && response.statusCode < 500) {
+        await healthStore.clearPending();
+        return ApiActionResult.failure(
+          messageFromResponse(response, 'Unable to save Health Profile.'),
+        );
+      }
+
+      return ApiActionResult.queued(
+        'Offline—your Health Profile update is queued for automatic sync.',
+        user: cachedUser,
+      );
+    } catch (e) {
+      log('Health Profile sync error: $e');
+      return ApiActionResult.queued(
+        'Offline—your Health Profile update is queued for automatic sync.',
+        user: cachedUser,
+      );
+    }
+  }
+
+  String _newUuid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes
+        .map((value) => value.toRadixString(16).padLeft(2, '0'))
+        .join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20)}';
   }
 
   Future<ApiActionResult> updateProfile({
@@ -804,6 +1052,17 @@ class ApiService {
         body: jsonEncode(fields),
       ).timeout(const Duration(seconds: 15));
 
+      if (response.statusCode == 200) {
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded['user'] is Map) {
+            await _safeCacheUser(
+              Map<String, dynamic>.from(decoded['user'] as Map),
+            );
+          }
+        } catch (_) {}
+      }
+
       if (response.statusCode == 200 && avatarPath != null) {
         final avatarRequest = http.MultipartRequest(
           "POST",
@@ -849,6 +1108,7 @@ class ApiService {
         await prefs.remove("token");
         await prefs.remove("isProfiled");
         await prefs.remove("activities");
+        await _safeClearHealthStore();
         return const ApiActionResult.failure(
           "Your session expired. Please log in again.",
         );

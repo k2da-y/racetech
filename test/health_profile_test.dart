@@ -100,4 +100,32 @@ void main() {
       );
     },
   );
+  test('calculates an adult BMI preview without claiming server sync', () {
+    final profile = HealthProfile.offlinePreview(
+      {'birthdate': '1995-05-15', 'bmi_notice': 'Notice'},
+      const HealthMeasurements('170', '65', '2026-10-17'),
+      now: DateTime(2026, 10, 17),
+    );
+    expect(profile.bmi, 22.5);
+    expect(profile.category, 'Healthy weight');
+    expect(profile.interpretation, 'adult');
+    expect(profile.measuredAt, '2026-10-17');
+  });
+
+  test('offline preview preserves age-specific handling and clearing', () {
+    final minor = HealthProfile.offlinePreview(
+      {'birthdate': '2010-05-15'},
+      const HealthMeasurements('160', '50', ''),
+      now: DateTime(2026, 10, 17),
+    );
+    expect(minor.bmi, 19.5);
+    expect(minor.category, isEmpty);
+    expect(minor.interpretation, 'age_specific_required');
+
+    final cleared = HealthProfile.offlinePreview({
+      'birthdate': '1995-05-15',
+    }, const HealthMeasurements('', '', ''));
+    expect(cleared.bmi, isNull);
+    expect(cleared.measuredAt, isEmpty);
+  });
 }
