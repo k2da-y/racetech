@@ -3,6 +3,32 @@ import 'package:racetechph/utils/event_category_registration.dart';
 import 'package:racetechph/utils/event_normalizer.dart';
 
 void main() {
+  test(
+    'normalization retains display units and canonical distances with category states',
+    () {
+      for (final withStates in [false, true]) {
+        final source = {
+          'categories': [
+            {
+              'id': 1,
+              'distance_value': 10,
+              'distance_unit': 'mi',
+              'distance_km': 16.0934,
+            },
+          ],
+          if (withStates)
+            'category_registration_states': [
+              {'category_id': 1, 'can_register': true},
+            ],
+        };
+        final category =
+            (normalizeEventFromApi(source)['categories'] as List).single as Map;
+        expect(category['distance_value'], 10);
+        expect(category['distance_unit'], 'mi');
+        expect(category['distance_km'], 16.0934);
+      }
+    },
+  );
   group('normalizeEventFromApi category registration states', () {
     test('allows a 7-9 AM category followed by an 11 AM-1 PM category', () {
       final event = normalizeEventFromApi(

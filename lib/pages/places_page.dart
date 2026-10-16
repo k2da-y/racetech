@@ -96,8 +96,18 @@ String _shortDate(String raw) {
   if (parsed == null) return "";
 
   const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
   final local = parsed.toLocal();
   return "${months[local.month - 1]} ${local.day}";
@@ -155,9 +165,9 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   List<Map<String, dynamic>> sortEventsByProfileInterests(
-      List<Map<String, dynamic>> events,
-      List<String> activities,
-      ) {
+    List<Map<String, dynamic>> events,
+    List<String> activities,
+  ) {
     final sorted = List<Map<String, dynamic>>.from(events);
 
     sorted.sort((a, b) {
@@ -198,9 +208,9 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   bool eventMatchesActivities(
-      Map<String, dynamic> event,
-      List<String> activities,
-      ) {
+    Map<String, dynamic> event,
+    List<String> activities,
+  ) {
     final selectedActivities = activities
         .map(normalizeInterestLabel)
         .where((activity) => activity.isNotEmpty)
@@ -277,8 +287,8 @@ class _PlacesPageState extends State<PlacesPage> {
 
   bool eventHasOpenCategory(Map<String, dynamic> event) {
     return ((event["categories"] as List?) ?? []).whereType<Map>().any(
-          (category) =>
-      (category["status"] ?? "").toString().toLowerCase() == "open",
+      (category) =>
+          (category["status"] ?? "").toString().toLowerCase() == "open",
     );
   }
 
@@ -296,9 +306,9 @@ class _PlacesPageState extends State<PlacesPage> {
 
   bool eventHasJoinedCategory(Map<String, dynamic> event) {
     return ((event["categories"] as List?) ?? [])
-        .whereType<Map>()
-        .map((category) => Map<String, dynamic>.from(category))
-        .any(categoryIsJoined) ||
+            .whereType<Map>()
+            .map((category) => Map<String, dynamic>.from(category))
+            .any(categoryIsJoined) ||
         eventBlocksJoin(event);
   }
 
@@ -440,8 +450,8 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   Future<void> refreshEventAfterRegistration(
-      Map<String, dynamic> registeredEvent,
-      ) async {
+    Map<String, dynamic> registeredEvent,
+  ) async {
     final eventId = (registeredEvent['id'] ?? '').toString().trim();
     if (eventId.isEmpty) {
       await loadUserPreferences();
@@ -460,8 +470,8 @@ class _PlacesPageState extends State<PlacesPage> {
     final updatedEvents = apiEvents
         .map(
           (event) =>
-      (event['id'] ?? '').toString() == eventId ? normalized : event,
-    )
+              (event['id'] ?? '').toString() == eventId ? normalized : event,
+        )
         .toList();
 
     setState(() {
@@ -502,9 +512,9 @@ class _PlacesPageState extends State<PlacesPage> {
 
   Future<void> openAnnouncementEvent(Map<String, dynamic> announcement) async {
     final eventId =
-    (announcement["action_event_id"] ?? announcement["event_id"] ?? "")
-        .toString()
-        .trim();
+        (announcement["action_event_id"] ?? announcement["event_id"] ?? "")
+            .toString()
+            .trim();
 
     if (eventId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -566,8 +576,8 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   Map<String, dynamic> normalizeAnnouncement(
-      Map<String, dynamic> announcement,
-      ) {
+    Map<String, dynamic> announcement,
+  ) {
     final event = announcement["event"] is Map
         ? Map<String, dynamic>.from(announcement["event"])
         : null;
@@ -601,10 +611,10 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   Future<bool> addPost(
-      String title,
-      String content, {
-        String? mediaPath,
-      }) async {
+    String title,
+    String content, {
+    String? mediaPath,
+  }) async {
     createPostError = null;
 
     final result = await ApiService().createCommunityPost(
@@ -815,7 +825,7 @@ class _PlacesPageState extends State<PlacesPage> {
                     clipBehavior: Clip.none,
                     itemCount: announcements.length,
                     separatorBuilder: (context, index) =>
-                    const SizedBox(width: 12),
+                        const SizedBox(width: 12),
                     itemBuilder: (context, index) {
                       return _AnnouncementCard(
                         announcement: announcements[index],
@@ -1291,41 +1301,43 @@ class _EventCarouselState extends State<_EventCarousel> {
         if (total > 1)
           total <= 8
               ? Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(total, (index) {
-              final selected = current == index;
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(total, (index) {
+                    final selected = current == index;
 
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutCubic,
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: selected ? 22 : 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: selected ? _brandPrimary : const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              );
-            }),
-          )
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: selected ? 22 : 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? _brandPrimary
+                            : const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    );
+                  }),
+                )
               : Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 5,
-            ),
-            decoration: BoxDecoration(
-              color: _brandSoft,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Text(
-              "${current + 1} / $total",
-              style: const TextStyle(
-                color: _brandDeep,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _brandSoft,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    "${current + 1} / $total",
+                    style: const TextStyle(
+                      color: _brandDeep,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
       ],
     );
   }
@@ -1469,7 +1481,10 @@ class _EventCard extends StatelessWidget {
                             icon: Icons.calendar_month_outlined,
                             label: (event["date"] ?? "").toString(),
                           ),
-                          if ((event["time"] ?? "").toString().trim().isNotEmpty)
+                          if ((event["time"] ?? "")
+                              .toString()
+                              .trim()
+                              .isNotEmpty)
                             _EventInfoChip(
                               icon: Icons.schedule_outlined,
                               label: event["time"].toString(),
@@ -1706,7 +1721,7 @@ class _EventImageFallback extends StatelessWidget {
       assetPath,
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) =>
-      const _EventImagePlaceholder(),
+          const _EventImagePlaceholder(),
     );
   }
 }
@@ -2250,11 +2265,11 @@ class _CommunityPostCard extends StatelessWidget {
                       clipBehavior: Clip.antiAlias,
                       child: avatarUrl.isNotEmpty
                           ? Image.network(
-                        avatarUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            _CommunityAvatarInitial(initial: initial),
-                      )
+                              avatarUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _CommunityAvatarInitial(initial: initial),
+                            )
                           : _CommunityAvatarInitial(initial: initial),
                     ),
                     const SizedBox(width: 11),
@@ -2492,7 +2507,7 @@ class _CommunityPostImage extends StatelessWidget {
         return Container(height: 170, color: _surfaceAlt);
       },
       errorBuilder: (context, error, stackTrace) =>
-      const _CommunityMediaFallback(icon: Icons.broken_image_outlined),
+          const _CommunityMediaFallback(icon: Icons.broken_image_outlined),
     );
   }
 }
@@ -2734,13 +2749,13 @@ class _RegisterDialogState extends State<RegisterDialog> {
       categoryById(selectedCategoryId);
 
   String categoryOptionLabel(Map<String, dynamic> category) {
-    final distance = category["distance_km"];
+    final distance = categoryDistanceLabel(category);
     final slots = category["slots_remaining"];
     final price = (category["price_amount"] ?? "").toString();
     final currency = (category["price_currency"] ?? "PHP").toString();
     final isFree =
         category["is_free"] == true ||
-            (int.tryParse((category["price_cents"] ?? 0).toString()) ?? 0) == 0;
+        (int.tryParse((category["price_cents"] ?? 0).toString()) ?? 0) == 0;
     final schedule = categoryScheduleLabel(
       category,
       eventStartDate: widget.event["event_start_date"],
@@ -2777,7 +2792,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
       if (qualificationNotes.isNotEmpty)
         "Qualification notes\n$qualificationNotes",
       if (schedule.isNotEmpty) schedule,
-      if (distance != null) "${distance}km",
+      if (distance.isNotEmpty) distance,
       isFree ? "Free" : "$currency $price",
       if (slots != null) "$slots slots left",
       if (!categoryCanRegister(category)) status,
@@ -2886,8 +2901,8 @@ class _RegisterDialogState extends State<RegisterDialog> {
   Future<void> submitRegistration() async {
     if (isGroupCategory(selectedCategory) &&
         (groupAction == 'create'
-            ? groupNameController.text
-            : invitationCodeController.text)
+                ? groupNameController.text
+                : invitationCodeController.text)
             .trim()
             .isEmpty) {
       showMessage(
@@ -3172,10 +3187,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
                   children: [
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 200),
-                      child: _DialogIcon(
-                        key: ValueKey(step),
-                        icon: stepIcon,
-                      ),
+                      child: _DialogIcon(key: ValueKey(step), icon: stepIcon),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -3221,7 +3233,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
                     const _EventNotice(
                       icon: Icons.lock_outline_rounded,
                       message:
-                      "No compatible categories are available for another registration.",
+                          "No compatible categories are available for another registration.",
                       color: _muted,
                     ),
                     const SizedBox(height: 12),
@@ -3312,7 +3324,7 @@ class _RegisterDialogState extends State<RegisterDialog> {
                       _EventNotice(
                         icon: Icons.fact_check_outlined,
                         message:
-                        "Qualification notes\n${categoryQualificationNotes(selectedCategory!)}",
+                            "Qualification notes\n${categoryQualificationNotes(selectedCategory!)}",
                         color: _brandDeep,
                       ),
                     ],
@@ -3374,8 +3386,8 @@ class _RegisterDialogState extends State<RegisterDialog> {
                         provider: paymentOptions
                             .map(
                               (option) =>
-                              paymentProviderLabel(option["provider"]),
-                        )
+                                  paymentProviderLabel(option["provider"]),
+                            )
                             .join(", "),
                       ),
                     ],
@@ -3404,8 +3416,8 @@ class _RegisterDialogState extends State<RegisterDialog> {
                     onProviderChanged: isSubmitting
                         ? null
                         : (provider) {
-                      setState(() => selectedPaymentProvider = provider);
-                    },
+                            setState(() => selectedPaymentProvider = provider);
+                          },
                     referenceController: paymentReferenceController,
                     notesController: paymentNotesController,
                     proofImageName: paymentProofImage?.name,
@@ -3420,69 +3432,69 @@ class _RegisterDialogState extends State<RegisterDialog> {
                     final shouldStackActions = constraints.maxWidth < 320;
                     final backButton = step > 0
                         ? OutlinedButton(
-                      onPressed: isSubmitting
-                          ? null
-                          : () {
-                        if (step == 2) {
-                          Navigator.pop(context, true);
-                          return;
-                        }
+                            onPressed: isSubmitting
+                                ? null
+                                : () {
+                                    if (step == 2) {
+                                      Navigator.pop(context, true);
+                                      return;
+                                    }
 
-                        setState(() {
-                          step--;
-                        });
-                      },
-                      child: Text(step == 2 ? "Pay Later" : "Back"),
-                    )
+                                    setState(() {
+                                      step--;
+                                    });
+                                  },
+                            child: Text(step == 2 ? "Pay Later" : "Back"),
+                          )
                         : null;
                     final primaryButton = FilledButton(
                       onPressed: isSubmitting || !canContinue || !canSubmit
                           ? null
                           : () {
-                        if (step == 0) {
-                          final category = categoryById(
-                            selectedCategoryId,
-                          );
-                          if (category == null ||
-                              !categoryCanRegister(category)) {
-                            showMessage(
-                              "Please choose an available compatible category.",
-                            );
-                            return;
-                          }
+                              if (step == 0) {
+                                final category = categoryById(
+                                  selectedCategoryId,
+                                );
+                                if (category == null ||
+                                    !categoryCanRegister(category)) {
+                                  showMessage(
+                                    "Please choose an available compatible category.",
+                                  );
+                                  return;
+                                }
 
-                          setState(() {
-                            step++;
-                          });
-                        } else if (step == 1) {
-                          submitRegistration();
-                        } else if (selectedPaymentIsPayMongo) {
-                          startPayMongoCheckout();
-                        } else {
-                          submitPaymentProof();
-                        }
-                      },
+                                setState(() {
+                                  step++;
+                                });
+                              } else if (step == 1) {
+                                submitRegistration();
+                              } else if (selectedPaymentIsPayMongo) {
+                                startPayMongoCheckout();
+                              } else {
+                                submitPaymentProof();
+                              }
+                            },
                       child: isSubmitting
                           ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.2,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(width: 10),
-                          Text("Submitting..."),
-                        ],
-                      )
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  height: 16,
+                                  width: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                SizedBox(width: 10),
+                                Text("Submitting..."),
+                              ],
+                            )
                           : Text(
-                        step == 2 && selectedPaymentIsPayMongo
-                            ? "Open PayMongo Checkout"
-                            : submitLabel,
-                      ),
+                              step == 2 && selectedPaymentIsPayMongo
+                                  ? "Open PayMongo Checkout"
+                                  : submitLabel,
+                            ),
                     );
 
                     if (shouldStackActions) {
@@ -3748,8 +3760,8 @@ class _WaiverAgreementSection extends StatelessWidget {
             physics: BouncingScrollPhysics(),
             child: Text(
               "I hereby declare that I am physically and medically fit to participate in this event. "
-                  "I fully understand and acknowledge the risks involved, including possible injury or accident. "
-                  "I voluntarily agree to assume all such risks and release the organizers, sponsors, and affiliated parties from any and all liability arising from my participation.",
+              "I fully understand and acknowledge the risks involved, including possible injury or accident. "
+              "I voluntarily agree to assume all such risks and release the organizers, sponsors, and affiliated parties from any and all liability arising from my participation.",
               style: TextStyle(
                 color: Color(0xFF334155),
                 height: 1.5,
@@ -3843,12 +3855,12 @@ class _AgreementTile extends StatelessWidget {
         subtitle: subtitle == null
             ? null
             : Text(
-          subtitle!,
-          style: const TextStyle(
-            color: _muted,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+                subtitle!,
+                style: const TextStyle(
+                  color: _muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
         controlAffinity: ListTileControlAffinity.leading,
         onChanged: onChanged,
       ),
@@ -4071,7 +4083,7 @@ class _PaymentProofSection extends StatelessWidget {
           const _EventNotice(
             icon: Icons.lock_outline_rounded,
             message:
-            "Continue with the checkout button below. Payment proof is not required for PayMongo.",
+                "Continue with the checkout button below. Payment proof is not required for PayMongo.",
             color: _muted,
           ),
         ] else ...[

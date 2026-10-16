@@ -2,6 +2,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:racetechph/utils/category_requirements.dart';
 
 void main() {
+  test('medical rules use canonical kilometres rather than display values', () {
+    expect(
+      categoryRequiresMedicalCertificate({
+        'distance_value': 31.07,
+        'distance_unit': 'mi',
+        'distance_km': 50,
+      }),
+      isTrue,
+    );
+    expect(
+      categoryRequiresMedicalCertificate({
+        'distance_value': 100,
+        'distance_unit': 'mi',
+        'distance_km': 49.9,
+      }),
+      isFalse,
+    );
+    expect(
+      categoryRequiresMedicalCertificate({
+        'distance_value': 100,
+        'distance_unit': 'mi',
+      }),
+      isFalse,
+    );
+  });
   test('explicit true requires a medical certificate', () {
     expect(
       categoryRequiresMedicalCertificate({

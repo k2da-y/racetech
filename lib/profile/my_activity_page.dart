@@ -92,7 +92,13 @@ String _prettyStatus(String value) {
 }
 
 class MyActivityPage extends StatefulWidget {
-  const MyActivityPage({super.key});
+  final Future<List<Map<String, dynamic>>> Function()? registrationsLoader;
+  final Future<List<Map<String, dynamic>>> Function()? resultsLoader;
+  const MyActivityPage({
+    super.key,
+    this.registrationsLoader,
+    this.resultsLoader,
+  });
 
   @override
   State<MyActivityPage> createState() => _MyActivityPageState();
@@ -135,8 +141,8 @@ class _MyActivityPageState extends State<MyActivityPage>
     try {
       // Same two calls as before, now fetched in parallel.
       final responses = await Future.wait([
-        ApiService().getMyRegistrations(),
-        ApiService().getMyResults(),
+        widget.registrationsLoader?.call() ?? ApiService().getMyRegistrations(),
+        widget.resultsLoader?.call() ?? ApiService().getMyResults(),
       ]);
 
       if (!mounted) return;
@@ -200,9 +206,9 @@ class _MyActivityPageState extends State<MyActivityPage>
 
   Future<void> openFeedbackSheet(Map<String, dynamic> registration) async {
     final registrationId =
-    (registration["id"] ?? registration["registration_id"] ?? "")
-        .toString()
-        .trim();
+        (registration["id"] ?? registration["registration_id"] ?? "")
+            .toString()
+            .trim();
     if (registrationId.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -243,20 +249,20 @@ class _MyActivityPageState extends State<MyActivityPage>
   }
 
   Map<String, dynamic> feedbackRegistrationForResult(
-      Map<String, dynamic> result,
-      ) {
+    Map<String, dynamic> result,
+  ) {
     final nested = result["registration"];
     final registrationId =
-    (result["registration_id"] ??
-        (nested is Map ? nested["id"] : null) ??
-        "")
-        .toString();
+        (result["registration_id"] ??
+                (nested is Map ? nested["id"] : null) ??
+                "")
+            .toString();
     Map<String, dynamic> registration = nested is Map
         ? Map<String, dynamic>.from(nested)
         : registrations.firstWhere(
-          (item) => (item["id"] ?? "").toString() == registrationId,
-      orElse: () => <String, dynamic>{"id": registrationId},
-    );
+            (item) => (item["id"] ?? "").toString() == registrationId,
+            orElse: () => <String, dynamic>{"id": registrationId},
+          );
 
     registration = Map<String, dynamic>.from(registration);
     for (final key in const [
@@ -369,32 +375,32 @@ class _MyActivityPageState extends State<MyActivityPage>
                       child: isLoading
                           ? const _LoadingState()
                           : TabBarView(
-                        children: [
-                          RefreshIndicator(
-                            color: _primary,
-                            onRefresh: refreshActivity,
-                            child: _RegistrationList(
-                              registrations: registrations,
-                              nestedMap: nestedMap,
-                              formatDate: formatDate,
-                              onSubmitPayment: openPaymentProofSheet,
-                              onGroupChanged: loadActivity,
-                              onFeedback: openFeedbackSheet,
+                              children: [
+                                RefreshIndicator(
+                                  color: _primary,
+                                  onRefresh: refreshActivity,
+                                  child: _RegistrationList(
+                                    registrations: registrations,
+                                    nestedMap: nestedMap,
+                                    formatDate: formatDate,
+                                    onSubmitPayment: openPaymentProofSheet,
+                                    onGroupChanged: loadActivity,
+                                    onFeedback: openFeedbackSheet,
+                                  ),
+                                ),
+                                RefreshIndicator(
+                                  color: _primary,
+                                  onRefresh: refreshActivity,
+                                  child: _ResultList(
+                                    results: results,
+                                    nestedMap: nestedMap,
+                                    feedbackRegistrationForResult:
+                                        feedbackRegistrationForResult,
+                                    onFeedback: openFeedbackSheet,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                          RefreshIndicator(
-                            color: _primary,
-                            onRefresh: refreshActivity,
-                            child: _ResultList(
-                              results: results,
-                              nestedMap: nestedMap,
-                              feedbackRegistrationForResult:
-                              feedbackRegistrationForResult,
-                              onFeedback: openFeedbackSheet,
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
                 ),
@@ -552,22 +558,22 @@ class _HeroStat extends StatelessWidget {
               children: [
                 isLoading
                     ? Container(
-                  height: 20,
-                  width: 28,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                )
+                        height: 20,
+                        width: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      )
                     : Text(
-                  "$value",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    height: 1,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                        "$value",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                 const SizedBox(height: 4),
                 Text(
                   label,
@@ -690,6 +696,7 @@ class _RegistrationList extends StatelessWidget {
         final registration = registrations[index];
         final event = nestedMap(registration, "event");
         final category = nestedMap(registration, "category");
+        final distance = categoryDistanceLabel(category);
         final title = (event["title"] ?? "Event").toString();
         final status = (registration["status"] ?? "pending").toString();
         final paymentRequired = registration["payment_required"] == true;
@@ -697,8 +704,8 @@ class _RegistrationList extends StatelessWidget {
         final payment = registration["payment"];
         final paymentProvider =
             registration["payment_provider"] ??
-                registration["provider"] ??
-                (payment is Map ? payment["provider"] : null);
+            registration["provider"] ??
+            (payment is Map ? payment["provider"] : null);
         final eventDate = formatEventDateRange(
           eventStartDate: event["event_start_date"],
           eventEndDate: event["event_end_date"],
@@ -715,10 +722,10 @@ class _RegistrationList extends StatelessWidget {
         final segments = categorySegmentDistanceLabel(
           category,
           eventType:
-          event["interest_type"] ?? event["event_type"] ?? event["type"],
+              event["interest_type"] ?? event["event_type"] ?? event["type"],
           eventTypeDetails: event["type_details"],
           eventTypeDetailItems:
-          event["type_detail_items"] ?? event["detail_items"],
+              event["type_detail_items"] ?? event["detail_items"],
         );
         final readiness = registrationReadiness(registration);
         final categoryNotes = categoryQualificationNotes(category);
@@ -732,15 +739,15 @@ class _RegistrationList extends StatelessWidget {
           eventType: eventType,
           eventTypeDetails: event["type_details"],
           eventTypeDetailItems:
-          event["type_detail_items"] ?? event["detail_items"],
+              event["type_detail_items"] ?? event["detail_items"],
         );
         final gear = categoryGear.isNotEmpty
             ? categoryGear
             : readinessText(readiness, const [
-          "required_gear",
-          "mandatory_gear",
-          "gear",
-        ]);
+                "required_gear",
+                "mandatory_gear",
+                "gear",
+              ]);
         final displayStatus = readiness == null
             ? status
             : readinessRegistrationStatus(readiness, status);
@@ -748,14 +755,14 @@ class _RegistrationList extends StatelessWidget {
         final showFeedback = shouldShowFeedbackPrompt(registration);
         final canSubmitPayment =
             groupAllowsPayment(registration) &&
-                paymentRequired &&
-                status == "pending" &&
-                ![
-                  "paid",
-                  "waived",
-                  "submitted",
-                  "expired",
-                ].contains(paymentStatus.toLowerCase());
+            paymentRequired &&
+            status == "pending" &&
+            ![
+              "paid",
+              "waived",
+              "submitted",
+              "expired",
+            ].contains(paymentStatus.toLowerCase());
 
         return _ActivityCard(
           icon: Icons.app_registration_outlined,
@@ -774,6 +781,7 @@ class _RegistrationList extends StatelessWidget {
               _ActivityChip(label: "BIB: ${registration["bib_number"]}"),
             if (schedule.isNotEmpty) _ActivityChip(label: schedule),
             if (segments.isNotEmpty) _ActivityChip(label: segments),
+            if (distance.isNotEmpty) _ActivityChip(label: distance),
             if (paymentRequired)
               _ActivityChip(
                 label: "Payment: ${paymentStatusLabel(paymentStatus)}",
@@ -786,49 +794,49 @@ class _RegistrationList extends StatelessWidget {
               ),
           ],
           action:
-          canSubmitPayment ||
-              showFeedback ||
-              registrationGroup(registration) != null
+              canSubmitPayment ||
+                  showFeedback ||
+                  registrationGroup(registration) != null
               ? Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (registrationGroup(registration) != null) ...[
-                OutlinedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => RegistrationGroupPage(
-                        groupId:
-                        '${registrationGroup(registration)!['id']}',
-                        onChanged: onGroupChanged,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    if (registrationGroup(registration) != null) ...[
+                      OutlinedButton(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => RegistrationGroupPage(
+                              groupId:
+                                  '${registrationGroup(registration)!['id']}',
+                              onChanged: onGroupChanged,
+                            ),
+                          ),
+                        ),
+                        child: const Text('Group Details'),
                       ),
-                    ),
-                  ),
-                  child: const Text('Group Details'),
-                ),
-                if (!groupAllowsPayment(registration))
-                  _InlineNote(text: groupPaymentReason(registration)),
-              ],
-              if (canSubmitPayment)
-                FilledButton.icon(
-                  onPressed: () => onSubmitPayment(registration),
-                  icon: const Icon(Icons.upload_file_outlined, size: 18),
-                  label: const Text("Complete Payment"),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _primary,
-                    foregroundColor: Colors.white,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              if (showFeedback)
-                OutlinedButton.icon(
-                  onPressed: () => onFeedback(registration),
-                  icon: const Icon(Icons.star_outline_rounded, size: 18),
-                  label: Text(_feedbackActionLabel(registration)),
-                ),
-            ],
-          )
+                      if (!groupAllowsPayment(registration))
+                        _InlineNote(text: groupPaymentReason(registration)),
+                    ],
+                    if (canSubmitPayment)
+                      FilledButton.icon(
+                        onPressed: () => onSubmitPayment(registration),
+                        icon: const Icon(Icons.upload_file_outlined, size: 18),
+                        label: const Text("Complete Payment"),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _primary,
+                          foregroundColor: Colors.white,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                    if (showFeedback)
+                      OutlinedButton.icon(
+                        onPressed: () => onFeedback(registration),
+                        icon: const Icon(Icons.star_outline_rounded, size: 18),
+                        label: Text(_feedbackActionLabel(registration)),
+                      ),
+                  ],
+                )
               : null,
           onTap: () => _showActivityDetailsSheet(
             context: context,
@@ -846,6 +854,12 @@ class _RegistrationList extends StatelessWidget {
                 label: "Event Dates",
                 value: eventDate,
               ),
+              if (distance.isNotEmpty)
+                _ActivityDetailItem(
+                  icon: Icons.straighten_outlined,
+                  label: "Distance",
+                  value: distance,
+                ),
               _ActivityDetailItem(
                 icon: Icons.schedule_outlined,
                 label: "Category Schedule",
@@ -905,58 +919,58 @@ class _RegistrationList extends StatelessWidget {
                 ),
             ],
             additionalContent:
-            readiness == null && checkpointMapUrl.isEmpty && !showFeedback
+                readiness == null && checkpointMapUrl.isEmpty && !showFeedback
                 ? null
                 : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (readiness != null)
-                  _RegistrationReadinessPanel(
-                    readiness: readiness,
-                    status: displayStatus,
-                    paymentAllowed: groupAllowsPayment(registration),
-                    paymentBlockedReason: groupPaymentReason(
-                      registration,
-                    ),
-                    onAction: (action) {
-                      final normalized = action.trim().toLowerCase();
-                      if (normalized == "complete_payment") {
-                        Navigator.pop(context);
-                        onSubmitPayment(registration);
-                      } else if (normalized == "view_results" ||
-                          normalized == "view_result") {
-                        Navigator.pop(context);
-                        DefaultTabController.of(context).animateTo(1);
-                      }
-                    },
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (readiness != null)
+                        _RegistrationReadinessPanel(
+                          readiness: readiness,
+                          status: displayStatus,
+                          paymentAllowed: groupAllowsPayment(registration),
+                          paymentBlockedReason: groupPaymentReason(
+                            registration,
+                          ),
+                          onAction: (action) {
+                            final normalized = action.trim().toLowerCase();
+                            if (normalized == "complete_payment") {
+                              Navigator.pop(context);
+                              onSubmitPayment(registration);
+                            } else if (normalized == "view_results" ||
+                                normalized == "view_result") {
+                              Navigator.pop(context);
+                              DefaultTabController.of(context).animateTo(1);
+                            }
+                          },
+                        ),
+                      if (readiness != null && checkpointMapUrl.isNotEmpty)
+                        const SizedBox(height: 14),
+                      if (checkpointMapUrl.isNotEmpty)
+                        CategoryCheckpointMap(imageUrl: checkpointMapUrl),
+                      if ((readiness != null || checkpointMapUrl.isNotEmpty) &&
+                          showFeedback)
+                        const SizedBox(height: 14),
+                      if (showFeedback)
+                        _FeedbackPromptCard(
+                          registration: registration,
+                          onOpen: () => onFeedback(registration),
+                        ),
+                    ],
                   ),
-                if (readiness != null && checkpointMapUrl.isNotEmpty)
-                  const SizedBox(height: 14),
-                if (checkpointMapUrl.isNotEmpty)
-                  CategoryCheckpointMap(imageUrl: checkpointMapUrl),
-                if ((readiness != null || checkpointMapUrl.isNotEmpty) &&
-                    showFeedback)
-                  const SizedBox(height: 14),
-                if (showFeedback)
-                  _FeedbackPromptCard(
-                    registration: registration,
-                    onOpen: () => onFeedback(registration),
-                  ),
-              ],
-            ),
             action: readiness == null && canSubmitPayment
                 ? Builder(
-              builder: (sheetContext) {
-                return FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(sheetContext);
-                    onSubmitPayment(registration);
-                  },
-                  icon: const Icon(Icons.upload_file_outlined),
-                  label: const Text("Complete Payment"),
-                );
-              },
-            )
+                    builder: (sheetContext) {
+                      return FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          onSubmitPayment(registration);
+                        },
+                        icon: const Icon(Icons.upload_file_outlined),
+                        label: const Text("Complete Payment"),
+                      );
+                    },
+                  )
                 : null,
           ),
         );
@@ -1052,9 +1066,9 @@ String _feedbackActionLabel(Map<String, dynamic> registration) {
   final feedback = registrationFeedback(registration);
   if (feedback == null) return "Rate This Event";
   return feedbackCanEdit(
-    feedback,
-    canSubmitFeedback: registrationCanSubmitFeedback(registration),
-  )
+        feedback,
+        canSubmitFeedback: registrationCanSubmitFeedback(registration),
+      )
       ? "Edit Feedback"
       : "View Feedback";
 }
@@ -1156,6 +1170,7 @@ class _ResultList extends StatelessWidget {
         final result = results[index];
         final event = nestedMap(result, "event");
         final category = nestedMap(result, "category");
+        final distance = categoryDistanceLabel(category);
         final title = (event["title"] ?? "Event").toString();
         final registration = feedbackRegistrationForResult(result);
         final showFeedback = shouldShowFeedbackPrompt(registration);
@@ -1170,6 +1185,7 @@ class _ResultList extends StatelessWidget {
               "Finish: ${result["finish_time"]}",
           ].join(" - "),
           chips: [
+            if (distance.isNotEmpty) _ActivityChip(label: distance),
             if ((result["rank_overall"] ?? "").toString().isNotEmpty)
               _ActivityChip(label: "Overall: ${result["rank_overall"]}"),
             if ((result["rank_category"] ?? "").toString().isNotEmpty)
@@ -1179,13 +1195,13 @@ class _ResultList extends StatelessWidget {
           ],
           action: showFeedback
               ? Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: () => onFeedback(registration),
-              icon: const Icon(Icons.star_outline_rounded, size: 18),
-              label: Text(_feedbackActionLabel(registration)),
-            ),
-          )
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () => onFeedback(registration),
+                    icon: const Icon(Icons.star_outline_rounded, size: 18),
+                    label: Text(_feedbackActionLabel(registration)),
+                  ),
+                )
               : null,
           onTap: () => _showActivityDetailsSheet(
             context: context,
@@ -1203,6 +1219,12 @@ class _ResultList extends StatelessWidget {
                 label: "Finish Time",
                 value: (result["finish_time"] ?? "").toString(),
               ),
+              if (distance.isNotEmpty)
+                _ActivityDetailItem(
+                  icon: Icons.straighten_outlined,
+                  label: "Distance",
+                  value: distance,
+                ),
               _ActivityDetailItem(
                 icon: Icons.leaderboard_outlined,
                 label: "Overall Rank",
@@ -1221,9 +1243,9 @@ class _ResultList extends StatelessWidget {
             ],
             additionalContent: showFeedback
                 ? _FeedbackPromptCard(
-              registration: registration,
-              onOpen: () => onFeedback(registration),
-            )
+                    registration: registration,
+                    onOpen: () => onFeedback(registration),
+                  )
                 : null,
           ),
         );
@@ -1324,10 +1346,7 @@ class _ActivityCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: _faint,
-                  ),
+                  const Icon(Icons.chevron_right_rounded, color: _faint),
                 ],
               ),
             ),
@@ -1342,10 +1361,7 @@ class _ActivityChip {
   final String label;
   final Color color;
 
-  const _ActivityChip({
-    required this.label,
-    this.color = _primary,
-  });
+  const _ActivityChip({required this.label, this.color = _primary});
 }
 
 class _ActivityChipView extends StatelessWidget {
@@ -1452,11 +1468,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
                             color: _primarySoft,
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          child: Icon(
-                            icon,
-                            color: _primary,
-                            size: 28,
-                          ),
+                          child: Icon(icon, color: _primary, size: 28),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -1503,7 +1515,7 @@ class _ActivityDetailsSheet extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child:
-              action ??
+                  action ??
                   FilledButton(
                     onPressed: () => Navigator.pop(context),
                     style: FilledButton.styleFrom(
@@ -1900,7 +1912,7 @@ class _ActivityPaymentProofSheetState
     super.initState();
     final preferred =
         widget.registration["payment_provider"] ??
-            widget.registration["provider"];
+        widget.registration["provider"];
     final option = paymentOptionByProvider(paymentOptions, preferred);
     selectedPaymentProvider = option?["provider"]?.toString();
   }
@@ -1941,7 +1953,7 @@ class _ActivityPaymentProofSheetState
         int.tryParse(
           (widget.registration["payment_amount_cents"] ?? 0).toString(),
         ) ??
-            0;
+        0;
     return "$currency ${(cents / 100).toStringAsFixed(2)}";
   }
 
@@ -2107,10 +2119,10 @@ class _ActivityPaymentProofSheetState
                     onChanged: isSubmitting
                         ? null
                         : (provider) {
-                      setState(() {
-                        selectedPaymentProvider = provider;
-                      });
-                    },
+                            setState(() {
+                              selectedPaymentProvider = provider;
+                            });
+                          },
                   ),
                   const SizedBox(height: 14),
                 ],
@@ -2239,10 +2251,7 @@ class _PaymentLine extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                color: _ink,
-                fontWeight: FontWeight.w900,
-              ),
+              style: const TextStyle(color: _ink, fontWeight: FontWeight.w900),
             ),
           ),
         ],

@@ -157,7 +157,7 @@ class EventDetailsSheet extends StatelessWidget {
   }
 
   String categorySummary(Map<String, dynamic> category) {
-    final distance = category["distance_km"];
+    final distance = categoryDistanceLabel(category);
     final slots = category["slots_remaining"];
     final price = (category["price_amount"] ?? "").toString();
     final currency = (category["price_currency"] ?? "PHP").toString();
@@ -166,7 +166,7 @@ class EventDetailsSheet extends StatelessWidget {
         (int.tryParse((category["price_cents"] ?? 0).toString()) ?? 0) == 0;
     final parts = [
       (category["name"] ?? "Category").toString(),
-      if (distance != null) "${distance}km",
+      if (distance.isNotEmpty) distance,
       isFree ? "Free" : "$currency $price",
       if (slots != null) "$slots slots",
     ];

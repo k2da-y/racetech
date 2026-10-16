@@ -1,3 +1,38 @@
+/// Display only. Keep distance_km untouched for rules and comparisons.
+String categoryDistanceLabel(Map<String, dynamic> category) {
+  double? number(dynamic value) {
+    final parsed = double.tryParse(value?.toString().trim() ?? '');
+    return parsed != null && parsed.isFinite && parsed > 0 ? parsed : null;
+  }
+
+  String format(double value) =>
+      value.toString().replaceFirst(RegExp(r'\.0$'), '');
+
+  final value = number(category['distance_value']);
+  final unit = (category['distance_unit'] ?? '')
+      .toString()
+      .trim()
+      .toLowerCase();
+  if (value != null) {
+    if (const {
+      'km',
+      'kilometer',
+      'kilometers',
+      'kilometre',
+      'kilometres',
+    }.contains(unit)) {
+      return '${format(value)} km';
+    }
+    if (const {'mi', 'mile', 'miles'}.contains(unit)) {
+      return '${format(value)} ${value == 1 ? 'mile' : 'miles'}';
+    }
+  }
+
+  // Never label the canonical kilometre value with a partial/new unit.
+  final legacy = number(category['distance_km']);
+  return legacy == null ? '' : '${format(legacy)} km';
+}
+
 List<Map<String, String>> _detailItems(dynamic source) {
   if (source is Map) {
     final nested = source['items'];
