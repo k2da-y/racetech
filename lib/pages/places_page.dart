@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../profile/create_post.dart';
 import '../profile/community_page.dart';
-import 'profile_settings_page.dart';
+import '../widgets/registration_profile_action.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/app_notification_service.dart';
@@ -15,6 +15,7 @@ import '../utils/event_category_registration.dart';
 import '../utils/event_schedule_formatter.dart';
 import '../utils/event_normalizer.dart';
 import '../utils/event_distance_formatter.dart';
+import '../utils/participant_birthdate.dart';
 import '../utils/payment_options.dart';
 import '../utils/event_gear_formatter.dart';
 import '../utils/event_trail_difficulty_formatter.dart';
@@ -255,6 +256,7 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   String eventActionLabel(Map<String, dynamic> event) {
+    if (registrationBlockReason(event).isNotEmpty) return 'Update Profile';
     if (event["status"] != "upcoming") {
       return "Unavailable";
     }
@@ -313,6 +315,8 @@ class _PlacesPageState extends State<PlacesPage> {
   }
 
   String eventAvailabilityMessage(Map<String, dynamic> event) {
+    final blockReason = registrationBlockReason(event);
+    if (blockReason.isNotEmpty) return blockReason;
     if (event["status"] != "upcoming") {
       return "Registration is only available for upcoming events.";
     }
@@ -388,7 +392,8 @@ class _PlacesPageState extends State<PlacesPage> {
 
     if (!mounted) return;
 
-    if (!apiService.profileIsComplete(user)) {
+    final blockReason = registrationBlockReason(event, user: user);
+    if (blockReason.isNotEmpty || !apiService.profileIsComplete(user)) {
       final shouldOpenSettings = await showDialog<bool>(
         context: context,
         builder: (context) => Theme(
@@ -403,10 +408,12 @@ class _PlacesPageState extends State<PlacesPage> {
               "Complete Your Profile",
               style: TextStyle(fontWeight: FontWeight.w900, color: _ink),
             ),
-            content: const Text(
-              "Please add your phone, address, birthdate, and emergency contact before joining an event.",
+            content: Text(
+              blockReason.isNotEmpty
+                  ? blockReason
+                  : "Please add your phone, address, birthdate, and emergency contact before joining an event.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: _body, height: 1.4),
+              style: const TextStyle(color: _body, height: 1.4),
             ),
             actions: [
               TextButton(
@@ -415,7 +422,7 @@ class _PlacesPageState extends State<PlacesPage> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text("Open Settings"),
+                child: const Text("Update Profile"),
               ),
             ],
           ),
@@ -425,9 +432,9 @@ class _PlacesPageState extends State<PlacesPage> {
       if (!mounted) return;
 
       if (shouldOpenSettings == true) {
-        await Navigator.push(
+        await openRegistrationProfileSettings(
           context,
-          MaterialPageRoute(builder: (_) => const ProfileSettingsPage()),
+          onRefresh: () => refreshEventAfterRegistration(event),
         );
       }
 
@@ -1288,7 +1295,9 @@ class _EventCarouselState extends State<_EventCarousel> {
 
               return _EventCard(
                 event: event,
-                canJoin: widget.canJoinEvent(event),
+                canJoin:
+                    widget.canJoinEvent(event) ||
+                    registrationBlockReason(event).isNotEmpty,
                 actionLabel: widget.eventActionLabel(event),
                 statusLabel: widget.eventStatusLabel(event),
                 onOpenDetails: () => widget.onOpenDetails(event),

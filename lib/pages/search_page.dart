@@ -4,9 +4,10 @@ import '../data/activity_data.dart';
 import '../services/api_service.dart';
 import '../widgets/event_details_sheet.dart';
 import '../utils/event_category_registration.dart';
+import '../utils/participant_birthdate.dart';
 import '../utils/event_normalizer.dart';
 import 'places_page.dart' show RegisterDialog;
-import 'profile_settings_page.dart';
+import '../widgets/registration_profile_action.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THEME (soft indigo – same tokens as the rest of the app)
@@ -323,6 +324,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   String eventActionLabel(Map<String, dynamic> event) {
+    if (registrationBlockReason(event).isNotEmpty) return 'Update Profile';
     if (event["status"] != "upcoming") {
       return "Unavailable";
     }
@@ -336,6 +338,8 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   String eventActionMessage(Map<String, dynamic> event) {
+    final blockReason = registrationBlockReason(event);
+    if (blockReason.isNotEmpty) return blockReason;
     if (event["status"] != "upcoming") {
       return "Registration is only available for upcoming events.";
     }
@@ -361,22 +365,25 @@ class _SearchPageState extends State<SearchPage> {
 
       if (!mounted) return;
 
-      if (!apiService.profileIsComplete(user)) {
+      final blockReason = registrationBlockReason(event, user: user);
+      if (blockReason.isNotEmpty || !apiService.profileIsComplete(user)) {
         final shouldOpenSettings = await showDialog<bool>(
           context: context,
           barrierColor: const Color(0x8C0F172A),
           builder: (dialogContext) => Theme(
             data: _brandTheme(dialogContext),
-            child: const _CompleteProfileDialog(),
+            child: _CompleteProfileDialog(
+              message: blockReason.isNotEmpty ? blockReason : null,
+            ),
           ),
         );
 
         if (!mounted) return;
 
         if (shouldOpenSettings == true) {
-          await Navigator.push(
+          await openRegistrationProfileSettings(
             context,
-            MaterialPageRoute(builder: (_) => const ProfileSettingsPage()),
+            onRefresh: () => refreshEventAfterRegistration(event),
           );
         }
 
@@ -609,7 +616,9 @@ class _SearchPageState extends State<SearchPage> {
                         return _EventResultCard(
                           event: event,
                           statusLabel: eventStatusLabel(event),
-                          canJoin: canJoinEvent(event),
+                          canJoin:
+                              canJoinEvent(event) ||
+                              registrationBlockReason(event).isNotEmpty,
                           actionLabel: eventActionLabel(event),
                           onTap: () => openEventDetails(event),
                         );
@@ -1303,7 +1312,11 @@ class _EventResultCard extends StatelessWidget {
                               ),
                             const Spacer(),
                             Text(
-                              canJoin ? "View & join" : "View details",
+                              actionLabel == 'Update Profile'
+                                  ? actionLabel
+                                  : canJoin
+                                  ? "View & join"
+                                  : "View details",
                               style: TextStyle(
                                 color: canJoin ? _brandPrimary : _faint,
                                 fontSize: 12,
@@ -1431,7 +1444,8 @@ class _SmallInfoPill extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CompleteProfileDialog extends StatelessWidget {
-  const _CompleteProfileDialog();
+  final String? message;
+  const _CompleteProfileDialog({this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -1478,10 +1492,11 @@ class _CompleteProfileDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Please add your phone, address, birthdate, and emergency contact before joining an event.",
+              Text(
+                message ??
+                    "Please add your phone, address, birthdate, and emergency contact before joining an event.",
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: _body,
                   height: 1.45,
                   fontWeight: FontWeight.w500,
@@ -1542,7 +1557,7 @@ class _CompleteProfileDialog extends StatelessWidget {
                         minimumSize: const Size.fromHeight(48),
                         padding: EdgeInsets.zero,
                       ),
-                      child: const Text("Open Settings"),
+                      child: const Text("Update Profile"),
                     ),
                   ),
                 ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'email_verification_page.dart';
 import '../services/api_service.dart';
+import '../utils/participant_birthdate.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THEME (soft indigo – same tokens as login_page.dart / signup_page.dart)
@@ -34,6 +35,7 @@ class SignUpPage2 extends StatefulWidget {
   final String lastName;
   final String gender;
   final String birthday;
+  final ApiService? apiService;
 
   const SignUpPage2({
     super.key,
@@ -41,6 +43,7 @@ class SignUpPage2 extends StatefulWidget {
     required this.lastName,
     required this.gender,
     required this.birthday,
+    this.apiService,
   });
 
   @override
@@ -154,6 +157,11 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
   Future<void> createAccount() async {
     if (isLoading) return;
+    final birthdateError = validateParticipantBirthdate(widget.birthday);
+    if (birthdateError != null) {
+      setState(() => formError = birthdateError);
+      return;
+    }
 
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
@@ -161,10 +169,10 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
     final invalid =
         email.isEmpty ||
-            password.isEmpty ||
-            confirmPassword.isEmpty ||
-            password != confirmPassword ||
-            password.length < 8;
+        password.isEmpty ||
+        confirmPassword.isEmpty ||
+        password != confirmPassword ||
+        password.length < 8;
 
     if (invalid) {
       HapticFeedback.heavyImpact();
@@ -186,7 +194,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
       formError = null;
     });
 
-    final result = await ApiService().register(
+    final result = await (widget.apiService ?? ApiService()).register(
       firstName: widget.firstName,
       lastName: widget.lastName,
       gender: widget.gender,
@@ -213,7 +221,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
       MaterialPageRoute(
         builder: (context) => EmailVerificationPage(email: email),
       ),
-          (route) => false,
+      (route) => false,
     );
   }
 
@@ -222,9 +230,9 @@ class _SignUpPage2State extends State<SignUpPage2> {
     final text = message.toLowerCase();
     final isConnection =
         text.contains("network") ||
-            text.contains("connect") ||
-            text.contains("timeout") ||
-            text.contains("server");
+        text.contains("connect") ||
+        text.contains("timeout") ||
+        text.contains("server");
 
     setState(() {
       if (!isConnection && text.contains("email")) {
@@ -232,7 +240,9 @@ class _SignUpPage2State extends State<SignUpPage2> {
       } else if (!isConnection && text.contains("password")) {
         passwordServerError = message;
       } else {
-        formError = message.isEmpty ? "Signup failed. Please try again." : message;
+        formError = message.isEmpty
+            ? "Signup failed. Please try again."
+            : message;
       }
     });
   }
@@ -305,11 +315,8 @@ class _SignUpPage2State extends State<SignUpPage2> {
     );
   }
 
-  TextStyle get _inputStyle => const TextStyle(
-    fontSize: 14.5,
-    fontWeight: FontWeight.w600,
-    color: _ink,
-  );
+  TextStyle get _inputStyle =>
+      const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: _ink);
 
   Widget _buildEmailField() {
     return Column(
@@ -404,10 +411,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _RequirementRow(
-            label: "At least 8 characters",
-            met: _hasMinLength,
-          ),
+          _RequirementRow(label: "At least 8 characters", met: _hasMinLength),
           const SizedBox(height: 6),
           _RequirementRow(label: "Passwords match", met: _passwordsMatch),
         ],
@@ -422,39 +426,39 @@ class _SignUpPage2State extends State<SignUpPage2> {
       child: formError == null
           ? const SizedBox(width: double.infinity)
           : Padding(
-        padding: const EdgeInsets.only(bottom: 18),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-          decoration: BoxDecoration(
-            color: _dangerSoft,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFFECACA)),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                color: _danger,
-                size: 19,
-              ),
-              const SizedBox(width: 9),
-              Expanded(
-                child: Text(
-                  formError!,
-                  style: const TextStyle(
-                    color: Color(0xFF991B1B),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
+              padding: const EdgeInsets.only(bottom: 18),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+                decoration: BoxDecoration(
+                  color: _dangerSoft,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.error_outline_rounded,
+                      color: _danger,
+                      size: 19,
+                    ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        formError!,
+                        style: const TextStyle(
+                          color: Color(0xFF991B1B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -463,7 +467,12 @@ class _SignUpPage2State extends State<SignUpPage2> {
   // ============================================================
 
   Widget _buildProgress() {
-    Widget step(int number, String label, {required bool done, required bool active}) {
+    Widget step(
+      int number,
+      String label, {
+      required bool done,
+      required bool active,
+    }) {
       return Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -488,18 +497,18 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   ),
                   child: done
                       ? const Icon(
-                    Icons.check_rounded,
-                    size: 12,
-                    color: Colors.white,
-                  )
+                          Icons.check_rounded,
+                          size: 12,
+                          color: Colors.white,
+                        )
                       : Text(
-                    "$number",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                          "$number",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 6),
                 Flexible(
@@ -751,48 +760,48 @@ class _SignUpPage2State extends State<SignUpPage2> {
                         duration: const Duration(milliseconds: 200),
                         child: isLoading
                             ? const Row(
-                          key: ValueKey("creating"),
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 19,
-                              height: 19,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.3,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 11),
-                            Text(
-                              "Creating account...",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        )
+                                key: ValueKey("creating"),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 19,
+                                    height: 19,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.3,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  SizedBox(width: 11),
+                                  Text(
+                                    "Creating account...",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ],
+                              )
                             : const Row(
-                          key: ValueKey("create"),
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              "Create Account",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w900,
+                                key: ValueKey("create"),
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    "Create Account",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(
+                                    Icons.check_rounded,
+                                    size: 19,
+                                    color: Colors.white,
+                                  ),
+                                ],
                               ),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(
-                              Icons.check_rounded,
-                              size: 19,
-                              color: Colors.white,
-                            ),
-                          ],
-                        ),
                       ),
                     ),
                   ),
@@ -865,9 +874,9 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
                   errorBuilder: (context, error, stackTrace) =>
-                  const DecoratedBox(
-                    decoration: BoxDecoration(gradient: _heroGradient),
-                  ),
+                      const DecoratedBox(
+                        decoration: BoxDecoration(gradient: _heroGradient),
+                      ),
                 ),
 
                 // Indigo overlay
@@ -915,7 +924,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
                     keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                     child: Center(
                       child: ConstrainedBox(
@@ -960,8 +969,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
                                 ),
                                 const Expanded(
                                   child: Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Icon(
                                         Icons.speed_rounded,

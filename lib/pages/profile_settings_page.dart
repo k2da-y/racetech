@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../widgets/health_conditions_selector.dart';
 import '../utils/health_profile.dart';
 import '../widgets/health_profile_section.dart';
+import '../utils/participant_birthdate.dart';
 
 // ============================================================
 // RACETECH DESIGN SYSTEM — soft indigo
@@ -323,23 +324,14 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
   Future<void> pickBirthdate() async {
     FocusScope.of(context).unfocus();
 
-    final parsed = DateTime.tryParse(birthdateController.text);
-    final lastDate = DateTime.now();
-
-    // Same 1950 floor as before (no backend impact). If a saved birthdate is
-    // older, start from it instead — showDatePicker crashes when initialDate
-    // falls outside firstDate..lastDate.
-    var firstDate = DateTime(1950);
-    if (parsed != null && parsed.isBefore(firstDate)) firstDate = parsed;
-
-    var initialDate = parsed ?? DateTime(2000);
-    if (initialDate.isAfter(lastDate)) initialDate = lastDate;
+    final limits = birthdateLimits();
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate,
-      firstDate: firstDate,
-      lastDate: lastDate,
+      initialDate: initialParticipantBirthdate(birthdateController.text),
+      firstDate: limits.first,
+      lastDate: limits.last,
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: const ColorScheme.light(
@@ -352,10 +344,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
       ),
     );
 
-    if (picked == null) return;
+    if (picked == null || !mounted) return;
 
     setState(() {
-      birthdateController.text = picked.toIso8601String().split("T").first;
+      birthdateController.text = formatParticipantBirthdate(picked);
     });
   }
 
@@ -394,7 +386,8 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
   bool get nameValid => nameController.text.trim().isNotEmpty;
   bool get phoneValid => phoneController.text.trim().length == 11;
   bool get genderValid => (selectedGender ?? "").isNotEmpty;
-  bool get birthdateValid => birthdateController.text.trim().isNotEmpty;
+  bool get birthdateValid =>
+      validateParticipantBirthdate(birthdateController.text) == null;
   bool get addressValid => addressController.text.trim().isNotEmpty;
   bool get emergencyNameValid => emergencyNameController.text.trim().isNotEmpty;
   bool get emergencyNumberValid =>
@@ -434,6 +427,12 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
     setState(() => healthErrors = errors);
     if (errors.isNotEmpty) {
       showMessage(errors.values.first);
+      return;
+    }
+
+    if (!healthOnly && !birthdateValid) {
+      setState(() => showValidationErrors = true);
+      showMessage(validateParticipantBirthdate(birthdateController.text)!);
       return;
     }
 
@@ -635,7 +634,9 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
               readOnly: true,
               onTap: isSaving ? null : pickBirthdate,
               helperText: birthdateHelper,
-              errorText: errorFor(birthdateValid, "Pick your birthdate"),
+              errorText: showValidationErrors
+                  ? validateParticipantBirthdate(birthdateController.text)
+                  : null,
               suffixIcon: const Icon(
                 Icons.edit_calendar_outlined,
                 color: _faint,

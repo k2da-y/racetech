@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'signup_page2.dart';
+import '../utils/participant_birthdate.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THEME (soft indigo – same tokens as login_page.dart)
@@ -66,21 +67,25 @@ class _SignUpPageState extends State<SignUpPage> {
     super.dispose();
   }
 
-  String? get firstNameError => showErrors &&
-      firstNameController.text.trim().isEmpty
+  String? get firstNameError =>
+      showErrors && firstNameController.text.trim().isEmpty
       ? "Please enter your first name"
       : null;
 
-  String? get lastNameError => showErrors &&
-      lastNameController.text.trim().isEmpty
+  String? get lastNameError =>
+      showErrors && lastNameController.text.trim().isEmpty
       ? "Please enter your last name"
       : null;
 
   String? get genderError =>
       showErrors && selectedGender == null ? "Please select your gender" : null;
 
-  String? get birthdayError => showErrors && selectedBirthday == null
-      ? "Please select your birthday"
+  String? get birthdayError => showErrors
+      ? validateParticipantBirthdate(
+          selectedBirthday == null
+              ? null
+              : formatParticipantBirthdate(selectedBirthday!),
+        )
       : null;
 
   // ============================================================
@@ -94,7 +99,12 @@ class _SignUpPageState extends State<SignUpPage> {
     if (firstName.isEmpty ||
         lastName.isEmpty ||
         selectedGender == null ||
-        selectedBirthday == null) {
+        validateParticipantBirthdate(
+              selectedBirthday == null
+                  ? null
+                  : formatParticipantBirthdate(selectedBirthday!),
+            ) !=
+            null) {
       HapticFeedback.heavyImpact();
       setState(() => showErrors = true);
       return;
@@ -109,7 +119,7 @@ class _SignUpPageState extends State<SignUpPage> {
           firstName: firstName,
           lastName: lastName,
           gender: selectedGender!,
-          birthday: selectedBirthday!.toIso8601String().split("T").first,
+          birthday: formatParticipantBirthdate(selectedBirthday!),
         ),
       ),
     );
@@ -118,12 +128,17 @@ class _SignUpPageState extends State<SignUpPage> {
   Future<void> pickBirthday() async {
     FocusScope.of(context).unfocus();
 
-    final now = DateTime.now();
+    final limits = birthdateLimits();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: selectedBirthday ?? DateTime(2000),
-      firstDate: DateTime(1950),
-      lastDate: now,
+      initialDate: initialParticipantBirthdate(
+        selectedBirthday == null
+            ? null
+            : formatParticipantBirthdate(selectedBirthday!),
+      ),
+      firstDate: limits.first,
+      lastDate: limits.last,
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
       helpText: "Select your birthday",
       builder: (context, child) {
         return Theme(
@@ -155,7 +170,7 @@ class _SignUpPageState extends State<SignUpPage> {
       },
     );
 
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         selectedBirthday = picked;
       });
@@ -653,8 +668,9 @@ class _SignUpPageState extends State<SignUpPage> {
             const SizedBox(height: 18),
 
             // LOGIN
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 const Text(
                   "Already have an account?",
@@ -672,7 +688,10 @@ class _SignUpPageState extends State<SignUpPage> {
                   ),
                   child: const Text(
                     "Sign in",
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900),
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ],
@@ -718,9 +737,9 @@ class _SignUpPageState extends State<SignUpPage> {
                 fit: BoxFit.cover,
                 alignment: Alignment.center,
                 errorBuilder: (context, error, stackTrace) =>
-                const DecoratedBox(
-                  decoration: BoxDecoration(gradient: _heroGradient),
-                ),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(gradient: _heroGradient),
+                    ),
               ),
 
               // Indigo overlay
@@ -768,7 +787,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   keyboardDismissBehavior:
-                  ScrollViewKeyboardDismissBehavior.onDrag,
+                      ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
                   child: Center(
                     child: ConstrainedBox(

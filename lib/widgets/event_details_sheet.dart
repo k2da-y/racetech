@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../utils/event_category_registration.dart';
 import '../utils/event_schedule_formatter.dart';
 import '../utils/event_distance_formatter.dart';
+import '../utils/participant_birthdate.dart';
 import '../utils/event_gear_formatter.dart';
 import '../utils/event_trail_difficulty_formatter.dart';
 import '../utils/qualification_notes.dart';
@@ -181,6 +182,8 @@ class EventDetailsSheet extends StatelessWidget {
     final venue = (event["venue"] ?? "").toString().trim();
     final eventCategories = categories;
     final detailItems = typeDetailItems;
+    final blockReason = registrationBlockReason(event);
+    final needsProfileUpdate = blockReason.isNotEmpty;
 
     return SafeArea(
       child: Padding(
@@ -331,7 +334,9 @@ class EventDetailsSheet extends StatelessWidget {
                       icon: canJoin
                           ? Icons.info_outline
                           : Icons.lock_outline_rounded,
-                      message: availabilityMessage,
+                      message: needsProfileUpdate
+                          ? blockReason
+                          : availabilityMessage,
                       color: canJoin
                           ? AppColors.primary
                           : const Color(0xFF64748B),
@@ -344,11 +349,21 @@ class EventDetailsSheet extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: canJoin ? onJoin : null,
-                icon: Icon(canJoin ? Icons.arrow_forward_rounded : Icons.lock),
-                label: Text(actionLabel),
+                onPressed: needsProfileUpdate || canJoin ? onJoin : null,
+                icon: Icon(
+                  needsProfileUpdate
+                      ? Icons.manage_accounts_outlined
+                      : canJoin
+                      ? Icons.arrow_forward_rounded
+                      : Icons.lock,
+                ),
+                label: Text(
+                  needsProfileUpdate ? 'Update Profile' : actionLabel,
+                ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: canJoin ? AppColors.primary : Colors.grey,
+                  backgroundColor: needsProfileUpdate || canJoin
+                      ? AppColors.primary
+                      : Colors.grey,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

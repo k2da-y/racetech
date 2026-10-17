@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' show Random;
 import '../utils/registration_group.dart';
 import '../utils/health_profile.dart';
+import '../utils/participant_birthdate.dart';
 import 'offline_health_profile_store.dart';
 import 'dart:convert';
 import 'dart:developer';
@@ -204,11 +205,25 @@ class ApiService {
   static AppConfigData? _cachedConfig;
   static Timer? _healthSyncTimer;
 
-  String messageFromResponse(http.Response response, String fallback) {
+  String messageFromResponse(
+    http.Response response,
+    String fallback, {
+    String? preferredField,
+  }) {
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) {
         return fallback;
+      }
+
+      final fieldErrors = decoded['errors'];
+      if (preferredField != null && fieldErrors is Map) {
+        final value = fieldErrors[preferredField];
+        final values = value is List ? value : [value];
+        for (final item in values) {
+          final message = item?.toString().trim() ?? '';
+          if (message.isNotEmpty) return message;
+        }
       }
 
       final message = decoded["message"]?.toString().trim();
@@ -294,8 +309,10 @@ class ApiService {
     required String password,
     required String passwordConfirmation,
   }) async {
+    final birthdateError = validateParticipantBirthdate(birthday);
+    if (birthdateError != null) return ApiActionResult.failure(birthdateError);
     try {
-      final response = await http.post(
+      final response = await (profileClient?.post ?? http.post)(
         Uri.parse("$baseUrl/register"),
         headers: {"Accept": "application/json"},
         body: {
@@ -309,8 +326,6 @@ class ApiService {
           "password_confirmation": passwordConfirmation,
         },
       );
-
-      log(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final body = response.body.trim();
@@ -336,6 +351,7 @@ class ApiService {
         messageFromResponse(
           response,
           "Please check your details and try again.",
+          preferredField: 'birthdate',
         ),
       );
     } catch (e) {
@@ -1027,6 +1043,12 @@ class ApiService {
     if (measurements != null && measurements.validate().isNotEmpty) {
       return ApiActionResult.failure(measurements.validate().values.first);
     }
+    if (!healthOnly) {
+      final birthdateError = validateParticipantBirthdate(birthdate);
+      if (birthdateError != null) {
+        return ApiActionResult.failure(birthdateError);
+      }
+    }
     try {
       final fields = <String, dynamic>{
         "name": name,
@@ -1115,7 +1137,11 @@ class ApiService {
       }
 
       return ApiActionResult.failure(
-        messageFromResponse(response, "Unable to update profile."),
+        messageFromResponse(
+          response,
+          "Unable to update profile.",
+          preferredField: 'birthdate',
+        ),
       );
     } catch (e) {
       log("Update profile error: $e");
@@ -2691,6 +2717,7 @@ class ApiService {
     if (user == null) {
       return false;
     }
+    if (registrationBlockReason(const {}, user: user).isNotEmpty) return false;
 
     final requiredFields = [
       user["name"],
