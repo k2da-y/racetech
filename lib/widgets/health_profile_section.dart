@@ -1,42 +1,27 @@
 import 'package:flutter/material.dart';
+
 import '../utils/health_profile.dart';
 
 class HealthProfileSection extends StatelessWidget {
   final HealthProfile profile;
-  final TextEditingController height, weight, date;
+  final TextEditingController height, weight;
   final Map<String, String> errors;
   final bool enabled;
   final bool hasChanges;
   final String syncMessage;
   final bool syncWarning;
+
   const HealthProfileSection({
     super.key,
     required this.profile,
     required this.height,
     required this.weight,
-    required this.date,
     this.errors = const {},
     this.enabled = true,
     this.hasChanges = false,
     this.syncMessage = '',
     this.syncWarning = false,
   });
-
-  Future<void> pickDate(BuildContext context) async {
-    final now = DateTime.now();
-    final existing = DateTime.tryParse(date.text);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: existing != null && !existing.isAfter(now) ? existing : now,
-      firstDate: existing != null && existing.year < 1900
-          ? existing
-          : DateTime(1900),
-      lastDate: now,
-    );
-    if (picked != null && context.mounted) {
-      date.text = picked.toIso8601String().split('T').first;
-    }
-  }
 
   @override
   Widget build(BuildContext context) => Column(
@@ -92,31 +77,14 @@ class HealthProfileSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
       ],
-      TextField(
-        key: const Key('health-date'),
-        controller: date,
-        enabled: enabled,
-        readOnly: true,
-        onTap: () => pickDate(context),
-        decoration: InputDecoration(
-          labelText: 'Measurement date — optional',
-          helperText:
-              'Leave blank to use the server date for new measurements.',
-          errorText: errors['date'],
-          border: const OutlineInputBorder(),
-          suffixIcon: IconButton(
-            tooltip: 'Clear measurement date',
-            onPressed: enabled ? date.clear : null,
-            icon: const Icon(Icons.clear),
-          ),
-        ),
+      const Text(
+        'The measurement date is recorded automatically when height or weight changes.',
       ),
       TextButton(
         onPressed: enabled
             ? () {
                 height.clear();
                 weight.clear();
-                date.clear();
               }
             : null,
         child: const Text('Clear measurements'),
@@ -133,7 +101,7 @@ class HealthProfileSection extends StatelessWidget {
         ),
       Text(profile.message),
       if (profile.measuredAt.isNotEmpty)
-        Text('Measured on ${profile.measuredAt}'),
+        Text('Measurements updated on ${profile.measuredAt}'),
       const SizedBox(height: 12),
       Text(profile.disclaimer),
     ],

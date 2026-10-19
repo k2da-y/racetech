@@ -57,7 +57,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
   final medicalConditionsController = TextEditingController();
   final heightController = TextEditingController();
   final weightController = TextEditingController();
-  final measurementDateController = TextEditingController();
   HealthProfile healthProfile = const HealthProfile();
   String savedMeasurements = '';
   String savedPersonalSnapshot = '';
@@ -67,16 +66,10 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
   bool healthUpdateQueued = false;
   bool healthUpdateConflict = false;
   ApiService get api => widget.apiService ?? ApiService();
-  HealthMeasurements get measurements => HealthMeasurements(
-    heightController.text,
-    weightController.text,
-    measurementDateController.text,
-  );
-  String get measurementSnapshot => [
-    heightController.text,
-    weightController.text,
-    measurementDateController.text,
-  ].join('\u0000');
+  HealthMeasurements get measurements =>
+      HealthMeasurements(heightController.text, weightController.text);
+  String get measurementSnapshot =>
+      [heightController.text, weightController.text].join('\u0000');
 
   String? selectedGender;
 
@@ -118,7 +111,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
       medicalConditionsController,
       heightController,
       weightController,
-      measurementDateController,
     ]) {
       controller.addListener(onFormChanged);
     }
@@ -138,7 +130,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
     medicalConditionsController.dispose();
     heightController.dispose();
     weightController.dispose();
-    measurementDateController.dispose();
     super.dispose();
   }
 
@@ -176,7 +167,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
     healthProfile = HealthProfile.fromUser(user);
     heightController.text = healthProfile.height?.toString() ?? '';
     weightController.text = healthProfile.weight?.toString() ?? '';
-    measurementDateController.text = healthProfile.measuredAt;
     nameController.text = (user["name"] ?? "").toString();
     phoneController.text = (user["phone"] ?? "").toString();
     selectedGender = normalizeGender((user["gender"] ?? "").toString());
@@ -197,8 +187,11 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
     if (pending != null && !pending.conflict) {
       heightController.text = pending.heightCm?.toString() ?? '';
       weightController.text = pending.weightKg?.toString() ?? '';
-      measurementDateController.text = pending.measuredAt ?? '';
-      healthProfile = HealthProfile.offlinePreview(user, measurements);
+      healthProfile = HealthProfile.offlinePreview(
+        user,
+        measurements,
+        measuredAt: pending.capturedOn,
+      );
     }
 
     selectedAvatar = null;
@@ -490,6 +483,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
           healthProfile = HealthProfile.offlinePreview(
             profileUser,
             measurements,
+            measuredAt: result.capturedOn,
           );
           healthUpdateQueued = true;
           healthUpdateConflict = false;
@@ -728,7 +722,6 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage>
               profile: healthProfile,
               height: heightController,
               weight: weightController,
-              date: measurementDateController,
               errors: healthErrors,
               enabled: !isSaving,
               hasChanges: measurementSnapshot != savedMeasurements,

@@ -51,7 +51,7 @@ void main() {
     expect(profile.notice, 'Notice');
   });
   test(
-    'PATCH sends the pair and date as JSON, and clearing sends real nulls',
+    'PATCH sends the pair without a user-controlled date and clearing sends real nulls',
     () async {
       final bodies = <Map>[];
       final client = MockClient((request) async {
@@ -68,17 +68,14 @@ void main() {
         healthStore: MemoryHealthProfileStore(),
       );
       expect(
-        (await save(
-          api,
-          const HealthMeasurements('170', '65', '2026-10-01'),
-        )).success,
+        (await save(api, const HealthMeasurements('170', '65'))).success,
         isTrue,
       );
       expect(bodies.first['height_cm'], 170);
       expect(bodies.first['weight_kg'], 65);
-      expect(bodies.first['bmi_measured_at'], '2026-10-01');
+      expect(bodies.first.containsKey('bmi_measured_at'), isFalse);
       expect(bodies.first.containsKey('bmi'), isFalse);
-      await save(api, const HealthMeasurements('', '', ''));
+      await save(api, const HealthMeasurements('', ''));
       expect(bodies.last.containsKey('height_cm'), isTrue);
       expect(bodies.last['height_cm'], isNull);
       expect(bodies.last['weight_kg'], isNull);
@@ -108,12 +105,12 @@ void main() {
         healthStore: MemoryHealthProfileStore(),
       );
       expect(
-        (await save(api, const HealthMeasurements('170', '', ''))).success,
+        (await save(api, const HealthMeasurements('170', ''))).success,
         isFalse,
       );
       expect(calls, 0);
       expect(
-        (await save(api, const HealthMeasurements('170', '65', ''))).message,
+        (await save(api, const HealthMeasurements('170', '65'))).message,
         contains('Date rejected'),
       );
     },
@@ -132,12 +129,19 @@ void main() {
     final result = await ApiService(
       profileClient: client,
       healthStore: store,
-    ).updateHealthProfile(const HealthMeasurements('170', '65', '2026-10-17'));
+    ).updateHealthProfile(const HealthMeasurements('170', '65'));
     expect(result.success, isTrue);
     expect(result.queued, isTrue);
     expect(store.pending, isNotNull);
     expect(store.pending!.id, matches(RegExp(r'^[0-9a-f-]{36}$')));
     expect(store.pending!.baseVersion, '2026-10-17T08:00:00Z');
+    final localDate = DateTime.now();
+    expect(
+      store.pending!.measuredAt,
+      '${localDate.year.toString().padLeft(4, '0')}-'
+      '${localDate.month.toString().padLeft(2, '0')}-'
+      '${localDate.day.toString().padLeft(2, '0')}',
+    );
   });
 
   test('queued edits synchronize once and are then removed', () async {
@@ -167,7 +171,7 @@ void main() {
     addTearDown(client.close);
     final api = ApiService(profileClient: client, healthStore: store);
     final result = await api.updateHealthProfile(
-      const HealthMeasurements('170', '65', ''),
+      const HealthMeasurements('170', '65'),
     );
     expect(result.success, isTrue);
     expect(result.queued, isFalse);
@@ -175,6 +179,98 @@ void main() {
     expect(store.pending, isNull);
     expect(store.user!['health_profile_updated_at'], '2026-10-17T09:00:00Z');
   });
+
+  test(
+    'queued retries preserve capture metadata and omit the legacy editable date',
+    () async {
+      final store = MemoryHealthProfileStore()
+        ..pending = PendingHealthUpdate.fromJson({
+          'client_update_id': '63c7490a-7d9a-40b6-bfad-93efb08e83a8',
+          'client_updated_at': '2026-10-17T00:30:00+08:00',
+          'base_version': null,
+          'height_cm': 170,
+          'weight_kg': 65,
+          // Old versions persisted the editable date. It must not control sync.
+          'bmi_measured_at': '2000-01-01',
+        });
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map;
+        expect(body['client_updated_at'], '2026-10-17T00:30:00+08:00');
+        expect(body.containsKey('bmi_measured_at'), isFalse);
+        return http.Response('{}', 503);
+      });
+      addTearDown(client.close);
+      final api = ApiService(profileClient: client, healthStore: store);
+      for (var attempt = 0; attempt < 2; attempt++) {
+        final result = await api.syncPendingHealthProfile();
+        expect(result.queued, isTrue);
+        expect(result.capturedOn, '2026-10-17');
+        expect(store.pending!.clientUpdatedAt, '2026-10-17T00:30:00+08:00');
+      }
+    },
+  );
+
+  test(
+    'new captures encode their offset and return the queued date after failure',
+    () async {
+      final captured = DateTime(2026, 10, 17, 23, 59, 59);
+      final store = MemoryHealthProfileStore();
+      final client = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map;
+        final timestamp = body['client_updated_at'] as String;
+        expect(timestamp, matches(RegExp(r'(Z|[+-]\d{2}:\d{2})$')));
+        expect(DateTime.parse(timestamp).isAtSameMomentAs(captured), isTrue);
+        expect(body.containsKey('bmi_measured_at'), isFalse);
+        throw http.ClientException('offline');
+      });
+      addTearDown(client.close);
+      final api = ApiService(
+        profileClient: client,
+        healthStore: store,
+        healthClock: () => captured,
+      );
+      final result = await api.updateHealthProfile(
+        const HealthMeasurements('170', '65'),
+      );
+      expect(result.queued, isTrue);
+      expect(result.capturedOn, '2026-10-17');
+      expect(store.pending!.capturedOn, result.capturedOn);
+      final cleared = await api.updateHealthProfile(
+        const HealthMeasurements('', ''),
+      );
+      expect(cleared.capturedOn, isNull);
+      expect(store.pending!.capturedOn, isNull);
+    },
+  );
+
+  test(
+    'capture-day lookup keeps timestamp offset, legacy UTC support and clearing',
+    () {
+      for (final stamp in [
+        '2026-10-17T00:30:00+08:00',
+        '2026-10-17T23:30:00-05:00',
+        '2026-10-17T12:00:00Z',
+      ]) {
+        final pending = PendingHealthUpdate.fromJson({
+          'client_update_id': 'id',
+          'client_updated_at': stamp,
+          'height_cm': 170,
+          'weight_kg': 65,
+          'bmi_measured_at': '2000-01-01',
+        });
+        expect(pending.capturedOn, '2026-10-17');
+      }
+      expect(
+        PendingHealthUpdate.fromJson({
+          'client_update_id': 'id',
+          'client_updated_at': '2026-10-17T12:00:00Z',
+          'height_cm': null,
+          'weight_kg': null,
+        }).capturedOn,
+        isNull,
+      );
+    },
+  );
 
   test(
     'conflicts retain the edit for review and cache server values',
@@ -199,7 +295,7 @@ void main() {
       final result = await ApiService(
         profileClient: client,
         healthStore: store,
-      ).updateHealthProfile(const HealthMeasurements('170', '65', ''));
+      ).updateHealthProfile(const HealthMeasurements('170', '65'));
       expect(result.conflict, isTrue);
       expect(store.pending!.conflict, isTrue);
       expect(store.user!['height_cm'], 180);

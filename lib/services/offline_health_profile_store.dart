@@ -11,6 +11,17 @@ class PendingHealthUpdate {
   final String? measuredAt;
   final bool conflict;
 
+  /// Keep the date in the capture timestamp's original offset. Parsing and
+  /// converting it to the device's current timezone can change the day.
+  String? get capturedOn {
+    if (heightCm == null ||
+        weightKg == null ||
+        DateTime.tryParse(clientUpdatedAt) == null) {
+      return null;
+    }
+    return RegExp(r'^\d{4}-\d{2}-\d{2}').stringMatch(clientUpdatedAt);
+  }
+
   const PendingHealthUpdate({
     required this.id,
     required this.clientUpdatedAt,

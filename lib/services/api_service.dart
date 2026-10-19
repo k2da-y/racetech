@@ -46,6 +46,7 @@ class ApiActionResult {
   final bool queued;
   final bool conflict;
   final Map<String, dynamic>? user;
+  final String? capturedOn;
 
   const ApiActionResult({
     required this.success,
@@ -53,6 +54,7 @@ class ApiActionResult {
     this.queued = false,
     this.conflict = false,
     this.user,
+    this.capturedOn,
   });
 
   const ApiActionResult.success([String message = "Success"])
@@ -61,8 +63,17 @@ class ApiActionResult {
   const ApiActionResult.failure(String message)
     : this(success: false, message: message);
 
-  const ApiActionResult.queued(String message, {Map<String, dynamic>? user})
-    : this(success: true, message: message, queued: true, user: user);
+  const ApiActionResult.queued(
+    String message, {
+    Map<String, dynamic>? user,
+    String? capturedOn,
+  }) : this(
+         success: true,
+         message: message,
+         queued: true,
+         user: user,
+         capturedOn: capturedOn,
+       );
 
   const ApiActionResult.conflict(String message, {Map<String, dynamic>? user})
     : this(success: false, message: message, conflict: true, user: user);
@@ -141,8 +152,12 @@ class AppConfigData {
 class ApiService {
   final http.Client? profileClient;
   final HealthProfileStore healthStore;
-  ApiService({this.profileClient, HealthProfileStore? healthStore})
-    : healthStore = healthStore ?? const SecureHealthProfileStore();
+  final DateTime Function()? healthClock;
+  ApiService({
+    this.profileClient,
+    HealthProfileStore? healthStore,
+    this.healthClock,
+  }) : healthStore = healthStore ?? const SecureHealthProfileStore();
   Future<ApiDataResult<Map<String, dynamic>>> groupRequest(
     String groupId, {
     String action = '',
@@ -890,13 +905,19 @@ class ApiService {
     } catch (_) {}
 
     final values = measurements.toJson();
+    final now = healthClock?.call() ?? DateTime.now();
+    final measuredAt = values['height_cm'] == null
+        ? null
+        : '${now.year.toString().padLeft(4, '0')}-'
+              '${now.month.toString().padLeft(2, '0')}-'
+              '${now.day.toString().padLeft(2, '0')}';
     final update = PendingHealthUpdate(
       id: _newUuid(),
-      clientUpdatedAt: DateTime.now().toUtc().toIso8601String(),
+      clientUpdatedAt: _healthCaptureTimestamp(now),
       baseVersion: cachedUser?['health_profile_updated_at']?.toString(),
       heightCm: values['height_cm'] as double?,
       weightKg: values['weight_kg'] as double?,
-      measuredAt: values['bmi_measured_at']?.toString(),
+      measuredAt: measuredAt,
     );
 
     try {
@@ -942,7 +963,11 @@ class ApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(update.toJson()..remove('conflict')),
+        body: jsonEncode(
+          update.toJson()
+            ..remove('conflict')
+            ..remove('bmi_measured_at'),
+        ),
       ).timeout(const Duration(seconds: 15));
 
       Map<String, dynamic>? responseUser;
@@ -997,14 +1022,24 @@ class ApiService {
       return ApiActionResult.queued(
         'Offline—your Health Profile update is queued for automatic sync.',
         user: cachedUser,
+        capturedOn: update.capturedOn,
       );
     } catch (e) {
       log('Health Profile sync error: $e');
       return ApiActionResult.queued(
         'Offline—your Health Profile update is queued for automatic sync.',
         user: cachedUser,
+        capturedOn: update.capturedOn,
       );
     }
+  }
+
+  String _healthCaptureTimestamp(DateTime captured) {
+    if (captured.isUtc) return captured.toIso8601String();
+    final offset = captured.timeZoneOffset.inMinutes;
+    final hours = (offset.abs() ~/ 60).toString().padLeft(2, '0');
+    final minutes = (offset.abs() % 60).toString().padLeft(2, '0');
+    return '${captured.toIso8601String()}${offset < 0 ? '-' : '+'}$hours:$minutes';
   }
 
   String _newUuid() {

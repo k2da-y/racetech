@@ -11,6 +11,66 @@ import 'package:racetechph/utils/health_profile.dart';
 import 'package:racetechph/widgets/health_profile_section.dart';
 
 void main() {
+  testWidgets(
+    'queued preview uses the captured day even after the clock has advanced',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'token': 'test-token'});
+      final current = DateTime.now();
+      final captured = DateTime(
+        current.year,
+        current.month,
+        current.day - 1,
+        23,
+        59,
+        59,
+      );
+      final date = captured.toIso8601String().split('T').first;
+      final store = MemoryHealthProfileStore();
+      final client = MockClient((request) async {
+        if (request.method == 'PUT') throw http.ClientException('offline');
+        return http.Response(
+          jsonEncode({
+            'user': {'id': 1, 'name': 'Participant', 'birthdate': '2000-01-01'},
+          }),
+          200,
+        );
+      });
+      addTearDown(client.close);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ProfileSettingsPage(
+            apiService: _NoAutoSyncApi(
+              profileClient: client,
+              healthStore: store,
+              healthClock: () => captured,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final height = find.byKey(const Key('health-height'));
+      await tester.ensureVisible(height);
+      await tester.pumpAndSettle();
+      await tester.enterText(height, '170');
+      final weight = find.byKey(const Key('health-weight'));
+      await tester.ensureVisible(weight);
+      await tester.pumpAndSettle();
+      await tester.enterText(weight, '65');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(store.pending!.capturedOn, date);
+      expect(find.text('Measurements updated on $date'), findsOneWidget);
+      expect(
+        find.text(
+          'Measurements updated on ${current.toIso8601String().split('T').first}',
+        ),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   for (final state in [
     'adult',
     'age_specific_required',
@@ -23,10 +83,8 @@ void main() {
     ) async {
       final h = TextEditingController(text: '170');
       final w = TextEditingController(text: '65');
-      final d = TextEditingController(text: '2026-10-01');
       addTearDown(h.dispose);
       addTearDown(w.dispose);
-      addTearDown(d.dispose);
       final profile = HealthProfile.fromUser(
         state == 'legacy'
             ? {}
@@ -45,7 +103,6 @@ void main() {
                 profile: profile,
                 height: h,
                 weight: w,
-                date: d,
               ),
             ),
           ),
@@ -60,18 +117,16 @@ void main() {
       if (state != 'adult') expect(find.text('Healthy weight'), findsNothing);
       await tester.ensureVisible(find.text('Clear measurements'));
       await tester.tap(find.text('Clear measurements'));
-      expect([h.text, w.text, d.text], ['', '', '']);
+      expect([h.text, w.text], ['', '']);
+      expect(find.byKey(const Key('health-date')), findsNothing);
     });
   }
   testWidgets(
     'shows paired validation errors and keeps saved BMI during edits',
     (tester) async {
-      final h = TextEditingController(text: '170'),
-          w = TextEditingController(),
-          d = TextEditingController();
+      final h = TextEditingController(text: '170'), w = TextEditingController();
       addTearDown(h.dispose);
       addTearDown(w.dispose);
-      addTearDown(d.dispose);
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -83,9 +138,8 @@ void main() {
                 ),
                 height: h,
                 weight: w,
-                date: d,
                 hasChanges: true,
-                errors: const HealthMeasurements('170', '', '').validate(),
+                errors: const HealthMeasurements('170', '').validate(),
               ),
             ),
           ),
@@ -195,9 +249,15 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.text('Measured on 2026-10-14'), findsOneWidget);
+        expect(find.text('Measurements updated on 2026-10-14'), findsOneWidget);
         expect(tester.takeException(), isNull);
       },
     );
   }
+}
+
+class _NoAutoSyncApi extends ApiService {
+  _NoAutoSyncApi({super.profileClient, super.healthStore, super.healthClock});
+  @override
+  void startHealthProfileSync() {}
 }

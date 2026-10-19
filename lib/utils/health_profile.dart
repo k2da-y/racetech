@@ -33,21 +33,24 @@ class HealthProfile {
     Map<String, dynamic> user,
     HealthMeasurements measurements, {
     DateTime? now,
+    String? measuredAt,
   }) {
     final values = measurements.toJson();
     final height = values['height_cm'] as double?;
     final weight = values['weight_kg'] as double?;
     final today = now ?? DateTime.now();
-    final measuredAt = height == null
+    final effectiveMeasuredAt = height == null
         ? ''
-        : (values['bmi_measured_at']?.toString() ?? _date(today));
+        : (measuredAt?.trim().isNotEmpty == true
+              ? measuredAt!.trim()
+              : _date(today));
     final bmi = height == null || weight == null
         ? null
         : double.parse(
             (weight / ((height / 100) * (height / 100))).toStringAsFixed(1),
           );
     final birthdate = DateTime.tryParse('${user['birthdate'] ?? ''}');
-    final reference = DateTime.tryParse(measuredAt) ?? today;
+    final reference = DateTime.tryParse(effectiveMeasuredAt) ?? today;
     final interpretation = bmi == null
         ? 'unavailable'
         : birthdate == null
@@ -62,7 +65,7 @@ class HealthProfile {
       bmi: bmi,
       category: interpretation == 'adult' ? _adultCategory(bmi) : '',
       interpretation: interpretation,
-      measuredAt: measuredAt,
+      measuredAt: effectiveMeasuredAt,
       notice: user['bmi_notice']?.toString().trim() ?? '',
     );
   }
@@ -104,11 +107,11 @@ class HealthProfile {
 }
 
 class HealthMeasurements {
-  final String height, weight, date;
-  const HealthMeasurements(this.height, this.weight, this.date);
-  Map<String, String> validate({DateTime? today}) {
+  final String height, weight;
+  const HealthMeasurements(this.height, this.weight);
+  Map<String, String> validate() {
     final errors = <String, String>{};
-    final h = height.trim(), w = weight.trim(), d = date.trim();
+    final h = height.trim(), w = weight.trim();
     if (h.isEmpty != w.isEmpty) {
       errors[h.isEmpty ? 'height' : 'weight'] =
           'Enter height and weight together, or clear both.';
@@ -123,27 +126,11 @@ class HealthMeasurements {
 
     range(h, 'height', 50, 250, 'cm');
     range(w, 'weight', 10, 500, 'kg');
-    if (d.isNotEmpty) {
-      final parsed = DateTime.tryParse(d);
-      final now = today ?? DateTime.now();
-      if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(d) ||
-          parsed == null ||
-          parsed.toIso8601String().split('T').first != d ||
-          parsed.isAfter(DateTime(now.year, now.month, now.day))) {
-        errors['date'] =
-            'Choose a valid measurement date that is not in the future.';
-      }
-      if (h.isEmpty && w.isEmpty) {
-        errors['date'] = 'Add measurements or clear the measurement date.';
-      }
-    }
     return errors;
   }
 
   Map<String, dynamic> toJson() => {
     'height_cm': height.trim().isEmpty ? null : double.parse(height.trim()),
     'weight_kg': weight.trim().isEmpty ? null : double.parse(weight.trim()),
-    if (date.trim().isNotEmpty && height.trim().isNotEmpty)
-      'bmi_measured_at': date.trim(),
   };
 }

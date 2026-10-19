@@ -42,68 +42,35 @@ void main() {
     );
   });
   test('requires a pair and accepts the backend limits', () {
-    expect(
-      const HealthMeasurements('', '65', '').validate(),
-      contains('height'),
-    );
-    expect(
-      const HealthMeasurements('170', '', '').validate(),
-      contains('weight'),
-    );
+    expect(const HealthMeasurements('', '65').validate(), contains('height'));
+    expect(const HealthMeasurements('170', '').validate(), contains('weight'));
     for (final values in [
-      const HealthMeasurements('50', '10', ''),
-      const HealthMeasurements('250', '500', ''),
+      const HealthMeasurements('50', '10'),
+      const HealthMeasurements('250', '500'),
     ]) {
       expect(values.validate(), isEmpty);
     }
     for (final bad in ['49', '251', 'NaN', 'Infinity', 'abc']) {
-      expect(HealthMeasurements(bad, '65', '').validate(), contains('height'));
+      expect(HealthMeasurements(bad, '65').validate(), contains('height'));
     }
     for (final bad in ['9', '501', 'NaN', '-2']) {
-      expect(HealthMeasurements('170', bad, '').validate(), contains('weight'));
+      expect(HealthMeasurements('170', bad).validate(), contains('weight'));
     }
   });
-  test(
-    'validates dates and supports explicit clearing without submitting BMI',
-    () {
-      final today = DateTime(2026, 10, 14);
-      for (final bad in ['2026-10-15', '2026-02-30', 'bad']) {
-        expect(
-          HealthMeasurements('170', '65', bad).validate(today: today),
-          contains('date'),
-        );
-      }
-      expect(
-        const HealthMeasurements(
-          '170',
-          '65',
-          '2026-10-14',
-        ).validate(today: today),
-        isEmpty,
-      );
-      expect(const HealthMeasurements('', '', '').toJson(), {
-        'height_cm': null,
-        'weight_kg': null,
-      });
-      expect(const HealthMeasurements('170', '65', '').toJson(), {
-        'height_cm': 170.0,
-        'weight_kg': 65.0,
-      });
-      expect(const HealthMeasurements('170', '65', '2026-10-01').toJson(), {
-        'height_cm': 170.0,
-        'weight_kg': 65.0,
-        'bmi_measured_at': '2026-10-01',
-      });
-      expect(
-        const HealthMeasurements('', '', '2026-10-01').validate(),
-        contains('date'),
-      );
-    },
-  );
+  test('supports explicit clearing without submitting BMI or a date', () {
+    expect(const HealthMeasurements('', '').toJson(), {
+      'height_cm': null,
+      'weight_kg': null,
+    });
+    expect(const HealthMeasurements('170', '65').toJson(), {
+      'height_cm': 170.0,
+      'weight_kg': 65.0,
+    });
+  });
   test('calculates an adult BMI preview without claiming server sync', () {
     final profile = HealthProfile.offlinePreview(
       {'birthdate': '1995-05-15', 'bmi_notice': 'Notice'},
-      const HealthMeasurements('170', '65', '2026-10-17'),
+      const HealthMeasurements('170', '65'),
       now: DateTime(2026, 10, 17),
     );
     expect(profile.bmi, 22.5);
@@ -115,7 +82,7 @@ void main() {
   test('offline preview preserves age-specific handling and clearing', () {
     final minor = HealthProfile.offlinePreview(
       {'birthdate': '2010-05-15'},
-      const HealthMeasurements('160', '50', ''),
+      const HealthMeasurements('160', '50'),
       now: DateTime(2026, 10, 17),
     );
     expect(minor.bmi, 19.5);
@@ -124,7 +91,7 @@ void main() {
 
     final cleared = HealthProfile.offlinePreview({
       'birthdate': '1995-05-15',
-    }, const HealthMeasurements('', '', ''));
+    }, const HealthMeasurements('', ''));
     expect(cleared.bmi, isNull);
     expect(cleared.measuredAt, isEmpty);
   });
