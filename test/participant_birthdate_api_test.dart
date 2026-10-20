@@ -14,8 +14,8 @@ Future<ApiActionResult> signup(ApiService api, String birthdate) =>
       gender: 'Male',
       birthday: birthdate,
       email: 'test@example.com',
-      password: 'password123',
-      passwordConfirmation: 'password123',
+      password: 'TrailRunner!2026',
+      passwordConfirmation: 'TrailRunner!2026',
     );
 Future<ApiActionResult> profile(ApiService api, String birthdate) =>
     api.updateProfile(

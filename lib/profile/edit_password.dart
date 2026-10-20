@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/api_service.dart';
+import '../utils/password_rules.dart';
+import '../widgets/password_requirements.dart';
 
 // ============================================================
 // RACETECH DESIGN SYSTEM — soft indigo (same as Profile pages)
@@ -12,14 +14,12 @@ const _primaryDeep = Color(0xFF4F46E5); // indigo-600
 const _accent = Color(0xFF0EA5E9); // sky-500
 const _primarySoft = Color(0xFFEEF2FF); // indigo-50
 const _ink = Color(0xFF1E293B);
-const _body = Color(0xFF475569);
 const _muted = Color(0xFF64748B);
 const _faint = Color(0xFF94A3B8);
 const _border = Color(0xFFE2E8F0);
 const _background = Color(0xFFF5F7FB);
 const _fieldFill = Color(0xFFF8FAFC);
 const _success = Color(0xFF16A34A);
-const _warning = Color(0xFFF59E0B);
 const _error = Color(0xFFE11D48);
 
 const List<BoxShadow> _softShadow = [
@@ -27,7 +27,8 @@ const List<BoxShadow> _softShadow = [
 ];
 
 class EditPasswordPage extends StatefulWidget {
-  const EditPasswordPage({super.key});
+  final ApiService? apiService;
+  const EditPasswordPage({super.key, this.apiService});
 
   @override
   State<EditPasswordPage> createState() => _EditPasswordPageState();
@@ -51,21 +52,30 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
   String? currentServerError;
   String? newServerError;
   String? confirmServerError;
+  String _lastCurrent = '';
+  String _lastNew = '';
+  String _lastConfirm = '';
 
   @override
   void initState() {
     super.initState();
 
     currentPasswordController.addListener(() {
+      if (_lastCurrent == currentPasswordController.text) return;
+      _lastCurrent = currentPasswordController.text;
       setState(() => currentServerError = null);
     });
     newPasswordController.addListener(() {
+      if (_lastNew == newPasswordController.text) return;
+      _lastNew = newPasswordController.text;
       setState(() {
         newServerError = null;
         confirmServerError = null;
       });
     });
     confirmPasswordController.addListener(() {
+      if (_lastConfirm == confirmPasswordController.text) return;
+      _lastConfirm = confirmPasswordController.text;
       setState(() => confirmServerError = null);
     });
   }
@@ -78,9 +88,9 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
     super.dispose();
   }
 
-  String get currentPass => currentPasswordController.text.trim();
-  String get newPass => newPasswordController.text.trim();
-  String get confirmPass => confirmPasswordController.text.trim();
+  String get currentPass => currentPasswordController.text;
+  String get newPass => newPasswordController.text;
+  String get confirmPass => confirmPasswordController.text;
 
   bool get hasTypedAnything =>
       currentPasswordController.text.isNotEmpty ||
@@ -101,7 +111,7 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
     if (newPass == currentPass) {
       return "New password must be different from the current one";
     }
-    return null;
+    return validateNewPassword(newPass);
   }
 
   String? get confirmError {
@@ -117,20 +127,22 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
   // ============================================================
 
   Future<void> _handleEditPasswordPage() async {
+    if (isSaving) return;
     FocusScope.of(context).unfocus();
 
     if (currentPass.isEmpty ||
         newPass.isEmpty ||
         confirmPass.isEmpty ||
         newPass != confirmPass ||
-        newPass == currentPass) {
+        newPass == currentPass ||
+        validateNewPassword(newPass) != null) {
       setState(() => showErrors = true);
       return;
     }
 
     setState(() => isSaving = true);
 
-    final result = await ApiService().changePassword(
+    final result = await (widget.apiService ?? ApiService()).changePassword(
       currentPassword: currentPass,
       newPassword: newPass,
       passwordConfirmation: confirmPass,
@@ -147,7 +159,21 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
       return;
     }
 
-    showServerError(result.message);
+    if ([
+      'password',
+      'password_confirmation',
+      'current_password',
+    ].any(result.fieldErrors.containsKey)) {
+      setState(() {
+        currentServerError = result.fieldErrors['current_password']?.join('\n');
+        newServerError = result.fieldErrors['password']?.join('\n');
+        confirmServerError = result.fieldErrors['password_confirmation']?.join(
+          '\n',
+        );
+      });
+    } else {
+      showServerError(result.message);
+    }
   }
 
   /// Puts the server's error message under the field it is about, so the
@@ -324,7 +350,10 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
                                     setState(() => obscureNew = !obscureNew),
                               ),
                               const SizedBox(height: 10),
-                              _PasswordStrength(password: newPass),
+                              PasswordRequirements(
+                                password: newPass,
+                                confirmation: confirmPass,
+                              ),
                               const SizedBox(height: 16),
                               passwordField(
                                 controller: confirmPasswordController,
@@ -426,7 +455,7 @@ class _EditPasswordPageState extends State<EditPasswordPage> {
       ),
       decoration: InputDecoration(
         labelText: label,
-        errorText: errorText,
+        error: errorText == null ? null : Text(errorText),
         helperText: helperText,
         labelStyle: const TextStyle(
           color: _muted,
@@ -712,108 +741,3 @@ class _SectionCard extends StatelessWidget {
 // ============================================================
 // PASSWORD STRENGTH (guide only — the server decides what's allowed)
 // ============================================================
-
-class _PasswordStrength extends StatelessWidget {
-  final String password;
-
-  const _PasswordStrength({required this.password});
-
-  @override
-  Widget build(BuildContext context) {
-    final longEnough = password.length >= 8;
-    final lettersAndNumbers =
-        RegExp(r"[A-Za-z]").hasMatch(password) &&
-        RegExp(r"\d").hasMatch(password);
-    final mixedOrSymbol =
-        (RegExp(r"[a-z]").hasMatch(password) &&
-            RegExp(r"[A-Z]").hasMatch(password)) ||
-        RegExp(r"[^A-Za-z0-9]").hasMatch(password);
-
-    var score = 0;
-    if (longEnough) score++;
-    if (lettersAndNumbers) score++;
-    if (mixedOrSymbol) score++;
-
-    final (label, color) = password.isEmpty
-        ? ("", _border)
-        : switch (score) {
-            0 || 1 => ("Weak", _error),
-            2 => ("Good", _warning),
-            _ => ("Strong", _success),
-          };
-    final bars = password.isEmpty ? 0 : score.clamp(1, 3);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            for (var i = 0; i < 3; i++) ...[
-              if (i > 0) const SizedBox(width: 6),
-              Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: i < bars ? color : _border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 12,
-          runSpacing: 4,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            _Requirement(met: longEnough, label: "8+ characters"),
-            _Requirement(met: lettersAndNumbers, label: "Letters & numbers"),
-            _Requirement(met: mixedOrSymbol, label: "Upper case or symbol"),
-            if (label.isNotEmpty)
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _Requirement extends StatelessWidget {
-  final bool met;
-  final String label;
-
-  const _Requirement({required this.met, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          met ? Icons.check_circle_rounded : Icons.circle_outlined,
-          size: 13,
-          color: met ? _success : _faint,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: met ? _success : _body,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}

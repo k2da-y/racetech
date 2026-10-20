@@ -3,6 +3,7 @@ import 'dart:math' show Random;
 import '../utils/registration_group.dart';
 import '../utils/health_profile.dart';
 import '../utils/participant_birthdate.dart';
+import '../utils/password_rules.dart';
 import 'offline_health_profile_store.dart';
 import 'dart:convert';
 import 'dart:developer';
@@ -31,13 +32,6 @@ enum ResendVerificationCodeResult {
   serverError,
 }
 
-enum ResetPasswordResult {
-  success,
-  invalidCodeOrPassword,
-  networkError,
-  serverError,
-}
-
 enum VerifyResetCodeResult { success, invalidCode, networkError, serverError }
 
 class ApiActionResult {
@@ -47,6 +41,7 @@ class ApiActionResult {
   final bool conflict;
   final Map<String, dynamic>? user;
   final String? capturedOn;
+  final Map<String, List<String>> fieldErrors;
 
   const ApiActionResult({
     required this.success,
@@ -55,13 +50,16 @@ class ApiActionResult {
     this.conflict = false,
     this.user,
     this.capturedOn,
+    this.fieldErrors = const {},
   });
 
   const ApiActionResult.success([String message = "Success"])
     : this(success: true, message: message);
 
-  const ApiActionResult.failure(String message)
-    : this(success: false, message: message);
+  const ApiActionResult.failure(
+    String message, {
+    Map<String, List<String>> fieldErrors = const {},
+  }) : this(success: false, message: message, fieldErrors: fieldErrors);
 
   const ApiActionResult.queued(
     String message, {
@@ -269,13 +267,11 @@ class ApiService {
 
   Future<LoginResult> login(String email, String password) async {
     try {
-      final response = await http
-          .post(
-            Uri.parse("$baseUrl/login"),
-            headers: {"Accept": "application/json"},
-            body: {"email": email, "password": password},
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await (profileClient?.post ?? http.post)(
+        Uri.parse("$baseUrl/login"),
+        headers: {"Accept": "application/json"},
+        body: {"email": email, "password": password},
+      ).timeout(const Duration(seconds: 15));
 
       log(response.body);
 
@@ -326,6 +322,8 @@ class ApiService {
   }) async {
     final birthdateError = validateParticipantBirthdate(birthday);
     if (birthdateError != null) return ApiActionResult.failure(birthdateError);
+    final invalid = _newPasswordFailure(password, passwordConfirmation);
+    if (invalid != null) return invalid;
     try {
       final response = await (profileClient?.post ?? http.post)(
         Uri.parse("$baseUrl/register"),
@@ -362,12 +360,10 @@ class ApiService {
         );
       }
 
-      return ApiActionResult.failure(
-        messageFromResponse(
-          response,
-          "Please check your details and try again.",
-          preferredField: 'birthdate',
-        ),
+      return _passwordResponseFailure(
+        response,
+        'Please check your details and try again.',
+        preferredFields: const ['birthdate', 'password'],
       );
     } catch (e) {
       log("Register error: $e");
@@ -522,40 +518,41 @@ class ApiService {
     }
   }
 
-  Future<ResetPasswordResult> resetPassword({
+  Future<ApiActionResult> resetPassword({
     required String email,
     required String code,
     required String password,
     required String passwordConfirmation,
   }) async {
+    final invalid = _newPasswordFailure(password, passwordConfirmation);
+    if (invalid != null) return invalid;
     try {
-      final response = await http
-          .post(
-            Uri.parse("$baseUrl/reset-password"),
-            headers: {"Accept": "application/json"},
-            body: {
-              "email": email,
-              "code": code,
-              "password": password,
-              "password_confirmation": passwordConfirmation,
-            },
-          )
-          .timeout(const Duration(seconds: 15));
-
-      log(response.body);
+      final response = await (profileClient?.post ?? http.post)(
+        Uri.parse("$baseUrl/reset-password"),
+        headers: {"Accept": "application/json"},
+        body: {
+          "email": email,
+          "code": code,
+          "password": password,
+          "password_confirmation": passwordConfirmation,
+        },
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        return ResetPasswordResult.success;
+        return ApiActionResult.success(
+          messageFromResponse(response, 'Password reset successfully.'),
+        );
       }
 
-      if (response.statusCode == 422) {
-        return ResetPasswordResult.invalidCodeOrPassword;
-      }
-
-      return ResetPasswordResult.serverError;
+      return _passwordResponseFailure(
+        response,
+        'Unable to reset password. Please try again.',
+      );
     } catch (e) {
       log("Reset password error: $e");
-      return ResetPasswordResult.networkError;
+      return const ApiActionResult.failure(
+        'Cannot connect to the server. Check your API connection.',
+      );
     }
   }
 
@@ -2703,24 +2700,22 @@ class ApiService {
     if (token == null) {
       return const ApiActionResult.failure("Please log in again.");
     }
+    final invalid = _newPasswordFailure(newPassword, passwordConfirmation);
+    if (invalid != null) return invalid;
 
     try {
-      final response = await http
-          .patch(
-            Uri.parse("$baseUrl/me/password"),
-            headers: {
-              "Accept": "application/json",
-              "Authorization": "Bearer $token",
-            },
-            body: {
-              "current_password": currentPassword,
-              "password": newPassword,
-              "password_confirmation": passwordConfirmation,
-            },
-          )
-          .timeout(const Duration(seconds: 15));
-
-      log(response.body);
+      final response = await (profileClient?.patch ?? http.patch)(
+        Uri.parse("$baseUrl/me/password"),
+        headers: {
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: {
+          "current_password": currentPassword,
+          "password": newPassword,
+          "password_confirmation": passwordConfirmation,
+        },
+      ).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         return ApiActionResult.success(
@@ -2737,15 +2732,70 @@ class ApiService {
         );
       }
 
-      return ApiActionResult.failure(
-        messageFromResponse(response, "Unable to update password."),
-      );
+      return _passwordResponseFailure(response, 'Unable to update password.');
     } catch (e) {
       log("Change password error: $e");
       return const ApiActionResult.failure(
         "Cannot connect to the server. Please try again.",
       );
     }
+  }
+
+  ApiActionResult? _newPasswordFailure(String password, String confirmation) {
+    final error = validateNewPassword(password);
+    if (error != null) {
+      return ApiActionResult.failure(
+        error,
+        fieldErrors: {
+          'password': [error],
+        },
+      );
+    }
+    final mismatch = validatePasswordConfirmation(password, confirmation);
+    return mismatch == null
+        ? null
+        : ApiActionResult.failure(
+            mismatch,
+            fieldErrors: {
+              'password_confirmation': [mismatch],
+            },
+          );
+  }
+
+  ApiActionResult _passwordResponseFailure(
+    http.Response response,
+    String fallback, {
+    List<String> preferredFields = const ['password'],
+  }) {
+    final errors = <String, List<String>>{};
+    try {
+      final decoded = jsonDecode(response.body);
+      final raw = decoded is Map ? decoded['errors'] : null;
+      if (raw is Map) {
+        for (final entry in raw.entries) {
+          final values = entry.value is List
+              ? entry.value as List
+              : [entry.value];
+          final messages = values
+              .whereType<String>()
+              .where((s) => s.trim().isNotEmpty)
+              .toList();
+          if (messages.isNotEmpty) errors[entry.key.toString()] = messages;
+        }
+      }
+    } catch (_) {}
+    for (final field in preferredFields) {
+      if (errors.containsKey(field)) {
+        return ApiActionResult.failure(
+          errors[field]!.join('\n'),
+          fieldErrors: errors,
+        );
+      }
+    }
+    return ApiActionResult.failure(
+      messageFromResponse(response, fallback),
+      fieldErrors: errors,
+    );
   }
 
   bool profileIsComplete(Map<String, dynamic>? user) {

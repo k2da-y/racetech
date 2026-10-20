@@ -32,7 +32,8 @@ const _heroGradient = LinearGradient(
 );
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final ApiService? apiService;
+  const LoginPage({super.key, this.apiService});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -102,7 +103,7 @@ class _LoginPageState extends State<LoginPage> {
     if (isLoading) return;
 
     final email = emailController.text.trim();
-    final password = passwordController.text.trim();
+    final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       HapticFeedback.heavyImpact();
@@ -123,7 +124,10 @@ class _LoginPageState extends State<LoginPage> {
       formError = null;
     });
 
-    final result = await ApiService().login(email, password);
+    final result = await (widget.apiService ?? ApiService()).login(
+      email,
+      password,
+    );
 
     if (!mounted) return;
 
@@ -270,6 +274,8 @@ class _LoginPageState extends State<LoginPage> {
           focusNode: passwordFocus,
           enabled: !isLoading,
           obscureText: obscurePassword,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.done,
           autofillHints: const [AutofillHints.password],
           onSubmitted: (_) => handleLogin(),

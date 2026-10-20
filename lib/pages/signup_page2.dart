@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'email_verification_page.dart';
 import '../services/api_service.dart';
 import '../utils/participant_birthdate.dart';
+import '../utils/password_rules.dart';
+import '../widgets/password_requirements.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THEME (soft indigo – same tokens as login_page.dart / signup_page.dart)
@@ -120,15 +122,12 @@ class _SignUpPage2State extends State<SignUpPage2> {
   }
 
   // ============================================================
-  // VALIDATION (same rules as before, shown inline)
+  // VALIDATION (shared Laravel-compatible new-password rules)
   // ============================================================
 
   String get _email => emailController.text.trim();
-  String get _password => passwordController.text.trim();
-  String get _confirm => confirmPasswordController.text.trim();
-
-  bool get _hasMinLength => _password.length >= 8;
-  bool get _passwordsMatch => _confirm.isNotEmpty && _password == _confirm;
+  String get _password => passwordController.text;
+  String get _confirm => confirmPasswordController.text;
 
   String? get emailError {
     if (emailServerError != null) return emailServerError;
@@ -140,8 +139,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
     if (passwordServerError != null) return passwordServerError;
     if (!showErrors) return null;
     if (_password.isEmpty) return "Please create a password";
-    if (!_hasMinLength) return "Password must be at least 8 characters.";
-    return null;
+    return validateNewPassword(_password);
   }
 
   String? get confirmError {
@@ -164,15 +162,15 @@ class _SignUpPage2State extends State<SignUpPage2> {
     }
 
     final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-    final confirmPassword = confirmPasswordController.text.trim();
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
     final invalid =
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty ||
         password != confirmPassword ||
-        password.length < 8;
+        validateNewPassword(password) != null;
 
     if (invalid) {
       HapticFeedback.heavyImpact();
@@ -212,7 +210,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
 
     if (!result.success) {
       HapticFeedback.heavyImpact();
-      _showServerError(result.message);
+      _showServerError(result);
       return;
     }
 
@@ -226,7 +224,24 @@ class _SignUpPage2State extends State<SignUpPage2> {
   }
 
   /// Puts the server message under the field it is about, or in a banner.
-  void _showServerError(String message) {
+  void _showServerError(ApiActionResult result) {
+    final errors = result.fieldErrors;
+    if ([
+      'password',
+      'email',
+      'birthdate',
+      'password_confirmation',
+    ].any(errors.containsKey)) {
+      setState(() {
+        passwordServerError = errors['password']?.join('\n');
+        emailServerError = errors['email']?.join('\n');
+        formError =
+            errors['birthdate']?.join('\n') ??
+            errors['password_confirmation']?.join('\n');
+      });
+      return;
+    }
+    final message = result.message;
     final text = message.toLowerCase();
     final isConnection =
         text.contains("network") ||
@@ -271,8 +286,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
       hintStyle: const TextStyle(color: _faint, fontWeight: FontWeight.w500),
       prefixIcon: Icon(icon, size: 21, color: hasError ? _danger : _muted),
       suffixIcon: suffixIcon,
-      errorText: errorText,
-      errorMaxLines: 2,
+      error: errorText == null ? null : Text(errorText),
       errorStyle: const TextStyle(color: _danger, fontWeight: FontWeight.w700),
       filled: true,
       fillColor: hasError ? _dangerSoft : _fieldFill,
@@ -352,6 +366,8 @@ class _SignUpPage2State extends State<SignUpPage2> {
           focusNode: passwordFocus,
           enabled: !isLoading,
           obscureText: obscurePassword,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.next,
           autofillHints: const [AutofillHints.newPassword],
           onSubmitted: (_) => confirmFocus.requestFocus(),
@@ -381,6 +397,8 @@ class _SignUpPage2State extends State<SignUpPage2> {
           focusNode: confirmFocus,
           enabled: !isLoading,
           obscureText: obscureConfirm,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.done,
           autofillHints: const [AutofillHints.newPassword],
           onSubmitted: (_) => createAccount(),
@@ -408,14 +426,7 @@ class _SignUpPage2State extends State<SignUpPage2> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _RequirementRow(label: "At least 8 characters", met: _hasMinLength),
-          const SizedBox(height: 6),
-          _RequirementRow(label: "Passwords match", met: _passwordsMatch),
-        ],
-      ),
+      child: PasswordRequirements(password: _password, confirmation: _confirm),
     );
   }
 
@@ -1027,38 +1038,3 @@ class _SignUpPage2State extends State<SignUpPage2> {
 // ─────────────────────────────────────────────────────────────────────────────
 // REQUIREMENT ROW
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _RequirementRow extends StatelessWidget {
-  final String label;
-  final bool met;
-
-  const _RequirementRow({required this.label, required this.met});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          transitionBuilder: (child, animation) =>
-              ScaleTransition(scale: animation, child: child),
-          child: Icon(
-            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-            key: ValueKey(met),
-            size: 16,
-            color: met ? _success : _faint,
-          ),
-        ),
-        const SizedBox(width: 7),
-        Text(
-          label,
-          style: TextStyle(
-            color: met ? _success : _muted,
-            fontSize: 12,
-            fontWeight: met ? FontWeight.w800 : FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-}

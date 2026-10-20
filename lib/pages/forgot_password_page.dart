@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/api_service.dart';
+import '../utils/password_rules.dart';
+import '../widgets/password_requirements.dart';
 
 // ============================================================
 // RACETECH DESIGN SYSTEM — soft indigo (same as Landing / Verify Email)
@@ -21,17 +23,16 @@ const _border = Color(0xFFE2E8F0);
 const _fieldFill = Color(0xFFF8FAFC);
 const _success = Color(0xFF16A34A);
 const _successSoft = Color(0xFFDCFCE7);
-const _warning = Color(0xFFF59E0B);
 const _error = Color(0xFFE11D48);
 
 const int _codeLength = 6;
-const int _minPasswordLength = 8;
 const int _resendCooldownSeconds = 60;
 
 enum _ResetStep { email, code, password }
 
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final ApiService? apiService;
+  const ForgotPasswordPage({super.key, this.apiService});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -54,6 +55,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   String? emailError;
   String? codeError;
   bool showPasswordErrors = false;
+  String? passwordServerError;
+  String? confirmServerError;
+  String _lastPassword = '';
+  String _lastConfirmation = '';
+  ApiService get api => widget.apiService ?? ApiService();
 
   int resendCooldown = 0;
   Timer? cooldownTimer;
@@ -71,8 +77,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     emailController.addListener(() {
       if (emailError != null) setState(() => emailError = null);
     });
-    passwordController.addListener(() => setState(() {}));
-    confirmPasswordController.addListener(() => setState(() {}));
+    passwordController.addListener(() {
+      if (_lastPassword == passwordController.text) return;
+      _lastPassword = passwordController.text;
+      setState(() {
+        passwordServerError = null;
+        confirmServerError = null;
+      });
+    });
+    confirmPasswordController.addListener(() {
+      if (_lastConfirmation == confirmPasswordController.text) return;
+      _lastConfirmation = confirmPasswordController.text;
+      setState(() => confirmServerError = null);
+    });
   }
 
   @override
@@ -108,7 +125,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     FocusScope.of(context).unfocus();
     setState(() => isLoading = true);
-    final result = await ApiService().forgotPassword(email);
+    final result = await api.forgotPassword(email);
 
     if (!mounted) return;
 
@@ -128,16 +145,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             : "Reset code sent to your email.",
       );
       WidgetsBinding.instance.addPostFrameCallback(
-            (_) => codeFocusNode.requestFocus(),
+        (_) => codeFocusNode.requestFocus(),
       );
       return;
     }
 
     final message = switch (result) {
       ForgotPasswordResult.invalidEmail =>
-      "We could not find an account with that email.",
+        "We could not find an account with that email.",
       ForgotPasswordResult.networkError =>
-      "Cannot connect to the server. Check your API connection.",
+        "Cannot connect to the server. Check your API connection.",
       ForgotPasswordResult.serverError => "Server error. Please try again.",
       ForgotPasswordResult.success => "",
     };
@@ -196,7 +213,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     FocusScope.of(context).unfocus();
     setState(() => isLoading = true);
-    final result = await ApiService().verifyResetCode(email: email, code: code);
+    final result = await api.verifyResetCode(email: email, code: code);
 
     if (!mounted) return;
 
@@ -214,7 +231,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final message = switch (result) {
       VerifyResetCodeResult.invalidCode => "Invalid or expired reset code.",
       VerifyResetCodeResult.networkError =>
-      "Cannot connect to the server. Check your API connection.",
+        "Cannot connect to the server. Check your API connection.",
       VerifyResetCodeResult.serverError => "Server error. Please try again.",
       VerifyResetCodeResult.success => "",
     };
@@ -234,30 +251,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   // ============================================================
 
   String? get passwordError {
+    if (passwordServerError != null) return passwordServerError;
     if (!showPasswordErrors) return null;
-    final password = passwordController.text.trim();
+    final password = passwordController.text;
     if (password.isEmpty) return "Enter a new password";
-    if (password.length < _minPasswordLength) {
-      return "Use at least $_minPasswordLength characters";
-    }
-    return null;
+    return validateNewPassword(password);
   }
 
   String? get confirmError {
+    if (confirmServerError != null) return confirmServerError;
     if (!showPasswordErrors) return null;
-    final confirm = confirmPasswordController.text.trim();
+    final confirm = confirmPasswordController.text;
     if (confirm.isEmpty) return "Re-enter your new password";
-    if (confirm != passwordController.text.trim()) {
+    if (confirm != passwordController.text) {
       return "Passwords do not match";
     }
     return null;
   }
 
   Future<void> resetPassword() async {
+    if (isLoading) return;
     final email = emailController.text.trim();
     final code = codeController.text.trim();
-    final password = passwordController.text.trim();
-    final confirmPassword = confirmPasswordController.text.trim();
+    final password = passwordController.text;
+    final confirmPassword = confirmPasswordController.text;
 
     if (!codeVerified) {
       showMessage("Please verify your reset code first");
@@ -266,15 +283,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     if (password.isEmpty ||
         confirmPassword.isEmpty ||
-        password.length < _minPasswordLength ||
+        validateNewPassword(password) != null ||
         password != confirmPassword) {
       setState(() => showPasswordErrors = true);
       return;
     }
 
     FocusScope.of(context).unfocus();
-    setState(() => isLoading = true);
-    final result = await ApiService().resetPassword(
+    setState(() {
+      isLoading = true;
+      passwordServerError = null;
+      confirmServerError = null;
+    });
+    final result = await api.resetPassword(
       email: email,
       code: code,
       password: password,
@@ -285,7 +306,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     setState(() => isLoading = false);
 
-    if (result == ResetPasswordResult.success) {
+    if (result.success) {
       HapticFeedback.mediumImpact();
       await showDialog<void>(
         context: context,
@@ -298,16 +319,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    final message = switch (result) {
-      ResetPasswordResult.invalidCodeOrPassword =>
-      "Invalid code, expired code, or password is too short.",
-      ResetPasswordResult.networkError =>
-      "Cannot connect to the server. Check your API connection.",
-      ResetPasswordResult.serverError => "Server error. Please try again.",
-      ResetPasswordResult.success => "",
-    };
-
-    showMessage(message);
+    setState(() {
+      passwordServerError = result.fieldErrors['password']?.join('\n');
+      confirmServerError = result.fieldErrors['password_confirmation']?.join(
+        '\n',
+      );
+      if (result.fieldErrors.containsKey('code')) {
+        codeVerified = false;
+        codeError = result.fieldErrors['code']!.join('\n');
+      }
+    });
+    if (result.fieldErrors.isEmpty ||
+        passwordServerError == null && confirmServerError == null) {
+      showMessage(result.message);
+    }
   }
 
   // ============================================================
@@ -372,15 +397,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               Image.asset(
                 "assets/login_bg.jpg",
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [_primaryDeep, _dark],
+                errorBuilder: (context, error, stackTrace) =>
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [_primaryDeep, _dark],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
               ),
               DecoratedBox(
                 decoration: BoxDecoration(
@@ -398,7 +424,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               Positioned(
                 top: -110,
                 right: -90,
-                child: _Glow(color: _primary.withValues(alpha: 0.28), size: 280),
+                child: _Glow(
+                  color: _primary.withValues(alpha: 0.28),
+                  size: 280,
+                ),
               ),
               Positioned(
                 bottom: 80,
@@ -446,19 +475,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Widget resetCard() {
     final (icon, title, subtitle) = switch (step) {
       _ResetStep.email => (
-      Icons.lock_reset_rounded,
-      "Forgot password?",
-      "Enter your email and we'll send you a 6-digit reset code.",
+        Icons.lock_reset_rounded,
+        "Forgot password?",
+        "Enter your email and we'll send you a 6-digit reset code.",
       ),
       _ResetStep.code => (
-      Icons.mark_email_unread_outlined,
-      "Enter reset code",
-      null,
+        Icons.mark_email_unread_outlined,
+        "Enter reset code",
+        null,
       ),
       _ResetStep.password => (
-      Icons.lock_outline_rounded,
-      "Create new password",
-      "Use at least $_minPasswordLength characters for your new password.",
+        Icons.lock_outline_rounded,
+        "Create new password",
+        passwordRequirementsMessage,
       ),
     };
 
@@ -670,8 +699,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   Widget passwordStep() {
-    final password = passwordController.text.trim();
-    final confirm = confirmPasswordController.text.trim();
+    final password = passwordController.text;
+    final confirm = confirmPasswordController.text;
     final matches = confirm.isNotEmpty && confirm == password;
 
     return Column(
@@ -681,6 +710,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           enabled: !isLoading,
           autofocus: true,
           obscureText: obscurePassword,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.next,
           autofillHints: const [AutofillHints.newPassword],
           cursorColor: _primary,
@@ -696,12 +727,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           ),
         ),
         const SizedBox(height: 10),
-        _PasswordStrength(password: password),
+        PasswordRequirements(password: password, confirmation: confirm),
         const SizedBox(height: 14),
         TextField(
           controller: confirmPasswordController,
           enabled: !isLoading,
           obscureText: obscureConfirm,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.done,
           autofillHints: const [AutofillHints.newPassword],
           onSubmitted: (_) => resetPassword(),
@@ -763,7 +796,7 @@ InputDecoration _fieldDecoration({
 
   return InputDecoration(
     labelText: label,
-    errorText: errorText,
+    error: errorText == null ? null : Text(errorText),
     helperText: helperText,
     labelStyle: const TextStyle(
       color: _muted,
@@ -771,7 +804,7 @@ InputDecoration _fieldDecoration({
       fontWeight: FontWeight.w600,
     ),
     floatingLabelStyle: WidgetStateTextStyle.resolveWith(
-          (states) => TextStyle(
+      (states) => TextStyle(
         color: states.contains(WidgetState.error) ? _error : _primary,
         fontWeight: FontWeight.w700,
       ),
@@ -847,18 +880,18 @@ class _StepIndicator extends StatelessWidget {
                 child: Center(
                   child: i < current
                       ? const Icon(
-                    Icons.check_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  )
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        )
                       : Text(
-                    "${i + 1}",
-                    style: TextStyle(
-                      color: i == current ? _primaryDeep : _faint,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
+                          "${i + 1}",
+                          style: TextStyle(
+                            color: i == current ? _primaryDeep : _faint,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 4),
@@ -941,7 +974,7 @@ class _CodeInput extends StatelessWidget {
                         child: _CodeBox(
                           digit: i < code.length ? code[i] : "",
                           isActive:
-                          focused &&
+                              focused &&
                               (i == code.length ||
                                   (code.length == _codeLength &&
                                       i == _codeLength - 1)),
@@ -1001,135 +1034,24 @@ class _CodeBox extends StatelessWidget {
         ),
         child: filled
             ? Text(
-          digit,
-          style: TextStyle(
-            color: hasError ? _error : _ink,
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-          ),
-        )
+                digit,
+                style: TextStyle(
+                  color: hasError ? _error : _ink,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              )
             : isActive
             ? Container(
-          width: 2,
-          height: 22,
-          decoration: BoxDecoration(
-            color: _primary,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        )
+                width: 2,
+                height: 22,
+                decoration: BoxDecoration(
+                  color: _primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )
             : null,
       ),
-    );
-  }
-}
-
-// ============================================================
-// PASSWORD STRENGTH
-// ============================================================
-
-class _PasswordStrength extends StatelessWidget {
-  final String password;
-
-  const _PasswordStrength({required this.password});
-
-  @override
-  Widget build(BuildContext context) {
-    final longEnough = password.length >= _minPasswordLength;
-    final hasNumber = RegExp(r"\d").hasMatch(password);
-    final hasLetter = RegExp(r"[A-Za-z]").hasMatch(password);
-    final hasMixedCase =
-        RegExp(r"[a-z]").hasMatch(password) &&
-            RegExp(r"[A-Z]").hasMatch(password);
-    final hasSymbol = RegExp(r"[^A-Za-z0-9]").hasMatch(password);
-
-    var score = 0;
-    if (longEnough) score++;
-    if (hasLetter && hasNumber) score++;
-    if (hasMixedCase || hasSymbol) score++;
-
-    final (label, color) = password.isEmpty
-        ? ("", _border)
-        : !longEnough
-        ? ("Too short", _error)
-        : switch (score) {
-      1 => ("Fair", _warning),
-      2 => ("Good", _primary),
-      _ => ("Strong", _success),
-    };
-    final filledBars = password.isEmpty ? 0 : (!longEnough ? 1 : score);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            for (var i = 0; i < 3; i++) ...[
-              if (i > 0) const SizedBox(width: 6),
-              Expanded(
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: i < filledBars ? color : _border,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            _Requirement(
-              met: longEnough,
-              label: "$_minPasswordLength+ characters",
-            ),
-            const SizedBox(width: 12),
-            _Requirement(met: hasLetter && hasNumber, label: "Letters & numbers"),
-            const Spacer(),
-            if (label.isNotEmpty)
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _Requirement extends StatelessWidget {
-  final bool met;
-  final String label;
-
-  const _Requirement({required this.met, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          met ? Icons.check_circle_rounded : Icons.circle_outlined,
-          size: 13,
-          color: met ? _success : _faint,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: met ? _success : _muted,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1166,12 +1088,12 @@ class _PrimaryButton extends StatelessWidget {
           boxShadow: disabled
               ? null
               : [
-            BoxShadow(
-              color: _primary.withValues(alpha: 0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+                  BoxShadow(
+                    color: _primary.withValues(alpha: 0.35),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
         ),
         child: ElevatedButton(
           onPressed: onPressed,
@@ -1228,32 +1150,32 @@ class _InlineError extends StatelessWidget {
       child: message == null
           ? const SizedBox(width: double.infinity)
           : Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: Row(
-          mainAxisAlignment: centered
-              ? MainAxisAlignment.center
-              : MainAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: _error,
-              size: 16,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                message!,
-                textAlign: centered ? TextAlign.center : TextAlign.start,
-                style: const TextStyle(
-                  color: _error,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+              padding: const EdgeInsets.only(top: 10),
+              child: Row(
+                mainAxisAlignment: centered
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    color: _error,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      message!,
+                      textAlign: centered ? TextAlign.center : TextAlign.start,
+                      style: const TextStyle(
+                        color: _error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -1294,7 +1216,11 @@ class _PasswordUpdatedDialog extends StatelessWidget {
           color: _successSoft,
           borderRadius: BorderRadius.circular(22),
         ),
-        child: const Icon(Icons.verified_user_rounded, color: _success, size: 34),
+        child: const Icon(
+          Icons.verified_user_rounded,
+          color: _success,
+          size: 34,
+        ),
       ),
       title: const Text(
         "Password updated",

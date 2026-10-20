@@ -63,8 +63,8 @@ void main() {
     );
     for (final (index, value) in [
       (0, 'test@example.com'),
-      (1, 'password123'),
-      (2, 'password123'),
+      (1, 'TrailRunner!2026'),
+      (2, 'TrailRunner!2026'),
     ]) {
       final field = find.byType(TextField).at(index);
       await tester.ensureVisible(field);
